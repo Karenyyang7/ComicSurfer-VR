@@ -1,0 +1,149 @@
+using UnityEngine;
+using UnityEngine.XR.Interaction.Toolkit;
+
+/// <summary>
+/// Makes a book glow with a pulsing emission effect.
+/// When the player grabs it, the glow stops and the UI updates.
+///
+/// SETUP:
+/// 1. Add this script to Book_C_Gray
+/// 2. Add an XR Grab Interactable component to Book_C_Gray
+/// 3. Add a Rigidbody to Book_C_Gray (check "Use Gravity")
+/// 4. Make sure Book_C_Gray has a Collider (Box Collider works great)
+/// 5. Drag your UIInstructions object into the instructions slot
+/// 6. Drag your TableSnapZone object into the snapZone slot
+/// </summary>
+public class GlowingBook : MonoBehaviour
+{
+    [Header("=== Glow Settings ===")]
+    [Tooltip("Color of the glow")]
+    public Color glowColor = new Color(0.5f, 0.8f, 1f, 1f); // soft blue
+
+    [Tooltip("How bright the glow gets at its peak")]
+    public float glowIntensity = 2f;
+
+    [Tooltip("How fast the glow pulses")]
+    public float pulseSpeed = 2f;
+
+    [Header("=== References ===")]
+    [Tooltip("Drag UIInstructions object here")]
+    public UIInstructions instructions;
+
+    [Tooltip("Drag TableSnapZone object here")]
+    public TableSnapZone snapZone;
+
+    // Internal
+    private Material bookMaterial;
+    private Material originalMaterial;
+    private bool isGlowing = true;
+    private bool hasBeenGrabbed = false;
+    private UnityEngine.XR.Interaction.Toolkit.Interactables.XRGrabInteractable grabInteractable;
+    private Color originalEmissionColor;
+
+    void Start()
+    {
+        // Get or create the grab interactable
+        grabInteractable = GetComponent<UnityEngine.XR.Interaction.Toolkit.Interactables.XRGrabInteractable>();
+        if (grabInteractable == null)
+        {
+            Debug.LogError("GlowingBook: No XR Grab Interactable found! Add one to " + gameObject.name);
+            return;
+        }
+
+        // Listen for grab and release events
+        grabInteractable.selectEntered.AddListener(OnGrab);
+        grabInteractable.selectExited.AddListener(OnRelease);
+
+        // Clone the material so we dont affect other objects using the same material
+        Renderer renderer = GetComponent<Renderer>();
+        if (renderer == null)
+            renderer = GetComponentInChildren<Renderer>();
+
+        if (renderer != null)
+        {
+            // Clone the material instance
+            bookMaterial = renderer.material; // this auto-clones
+            originalEmissionColor = bookMaterial.GetColor("_EmissionColor");
+
+            // Enable emission on the material
+            bookMaterial.EnableKeyword("_EMISSION");
+            bookMaterial.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
+        }
+
+        // Show first instruction
+        if (instructions != null)
+        {
+            instructions.ShowMessage("Pick up the glowing book!");
+        }
+    }
+
+    void Update()
+    {
+        if (!isGlowing || bookMaterial == null) return;
+
+        // Pulse the emission using a sine wave
+        float pulse = (Mathf.Sin(Time.time * pulseSpeed) + 1f) / 2f; // 0 to 1
+        Color emission = glowColor * pulse * glowIntensity;
+        bookMaterial.SetColor("_EmissionColor", emission);
+    }
+
+    void OnGrab(SelectEnterEventArgs args)
+    {
+        hasBeenGrabbed = true;
+
+        // Stop the glow
+        isGlowing = false;
+        if (bookMaterial != null)
+        {
+            bookMaterial.SetColor("_EmissionColor", Color.black);
+        }
+
+        // Update instructions
+        if (instructions != null)
+        {
+            instructions.ShowMessage("Place the book on the table!");
+        }
+
+        // Enable the snap zone so the table is ready to receive the book
+        if (snapZone != null)
+        {
+            snapZone.EnableSnapZone();
+        }
+    }
+
+    void OnRelease(SelectExitEventArgs args)
+    {
+        // If the book was released but NOT on the table, remind the player
+        // (the snap zone handles the "on table" case)
+        if (hasBeenGrabbed && instructions != null && snapZone != null && !snapZone.bookPlaced)
+        {
+            instructions.ShowMessage("Place the book on the table!");
+        }
+    }
+
+    /// <summary>
+    /// Call this to make the book glow again (used later when the thief page is reached)
+    /// </summary>
+    public void StartGlowing()
+    {
+        isGlowing = true;
+    }
+
+    public void StopGlowing()
+    {
+        isGlowing = false;
+        if (bookMaterial != null)
+        {
+            bookMaterial.SetColor("_EmissionColor", Color.black);
+        }
+    }
+
+    void OnDestroy()
+    {
+        if (grabInteractable != null)
+        {
+            grabInteractable.selectEntered.RemoveListener(OnGrab);
+            grabInteractable.selectExited.RemoveListener(OnRelease);
+        }
+    }
+}
