@@ -31,6 +31,14 @@ public class JenVRBody : MonoBehaviour
     public Transform leftHandTarget;
     public Transform rightHandTarget;
 
+    [Header("=== Ray Origins ===")]
+    [Tooltip("Scale-1 empty under XR Origin, assigned to the LEFT XRRayInteractor.rayOriginTransform (and its line visual). Driven to Jen's left wrist each frame so the laser emits from her hand.")]
+    public Transform leftRayOrigin;
+    [Tooltip("Scale-1 empty under XR Origin, assigned to the RIGHT XRRayInteractor.rayOriginTransform (and its line visual).")]
+    public Transform rightRayOrigin;
+    [Tooltip("Optional offset (m) from the wrist along the aim direction, if you want the beam to start at the knuckles instead of the wrist.")]
+    public float rayOriginForwardOffset = 0f;
+
     [Header("=== Tuning ===")]
     public float bodyTurnSpeed = 8f;
     public float bodyTurnThreshold = 50f;
@@ -73,7 +81,7 @@ public class JenVRBody : MonoBehaviour
     private float targetBodyYaw;
     private Vector3 lastPosition;
     private float smoothedSpeed;
-    private float headToRootOffset; // cached in Start: head bone world Y above root Y (T-pose)
+    private Transform cameraOffsetParent; // = headTarget.parent (Camera Offset). Its localY = CameraYOffset, used to lift controller IK targets out of underground LOCAL-space poses (Device mode).
 
     void Start()
     {
@@ -95,10 +103,11 @@ public class JenVRBody : MonoBehaviour
         if (hips == null) Debug.LogError("JenVRBody: Could not find mixamorig:Hips!");
         if (head == null) Debug.LogError("JenVRBody: Could not find mixamorig:Head!");
 
-        // Cache head bone height above root in T-pose so UpdateBodyPosition can align Jen's
-        // eyes to the camera every frame, regardless of user height or CameraYOffset.
-        if (head != null)
-            headToRootOffset = head.position.y - transform.position.y;
+        // Camera Offset is the headset's parent; its localY equals XROrigin.CameraYOffset.
+        // Controllers are siblings of Camera Offset, so in Device/LOCAL tracking their poses are
+        // relative to the HMD start (underground); we add this offset to controller IK targets.
+        if (headTarget != null)
+            cameraOffsetParent = headTarget.parent;
 
         targetBodyYaw = transform.eulerAngles.y;
         lastPosition  = transform.position;
@@ -139,6 +148,19 @@ public class JenVRBody : MonoBehaviour
                   leftHandTarget,  leftHandOffset,  leftHandRotationOffset);
         UpdateArm(rightShoulder, rightArm, rightForeArm, rightHand,
                   rightHandTarget, rightHandOffset, rightHandRotationOffset);
+
+        // Pin each ray origin to the (post-IK) wrist, aiming along the controller's forward.
+        // Assigned to the XRRayInteractor.rayOriginTransform so both the visible beam and the
+        // selection raycast emit from Jen's hand.
+        UpdateRayOrigin(leftRayOrigin,  leftHand,  leftHandTarget);
+        UpdateRayOrigin(rightRayOrigin, rightHand, rightHandTarget);
+    }
+
+    void UpdateRayOrigin(Transform rayOrigin, Transform handBone, Transform controller)
+    {
+        if (rayOrigin == null || handBone == null) return;
+        if (controller != null) rayOrigin.rotation = controller.rotation; // aim where the player points
+        rayOrigin.position = handBone.position + rayOrigin.forward * rayOriginForwardOffset;
     }
 
     void UpdateBodyPosition()
@@ -230,6 +252,12 @@ public class JenVRBody : MonoBehaviour
         // World-space target (offset applied in controller's local space)
         Vector3    targetPos = target.TransformPoint(posOffset);
         Quaternion targetRot = target.rotation * Quaternion.Euler(rotOffset);
+
+        // Device/LOCAL tracking: the controllers (siblings of Camera Offset) report Y relative to
+        // the HMD start → underground. Lift the IK target by CameraYOffset (= Camera Offset localY)
+        // so Jen's arms reach the controllers in world space instead of through the floor.
+        if (cameraOffsetParent != null)
+            targetPos.y += cameraOffsetParent.localPosition.y;
 
         float upperArmLength = Vector3.Distance(upperArm.position, foreArm.position);
         float foreArmLength  = Vector3.Distance(foreArm.position,  hand.position);
