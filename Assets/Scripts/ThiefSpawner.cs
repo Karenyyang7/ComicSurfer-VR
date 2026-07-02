@@ -72,10 +72,10 @@ public class ThiefSpawner : MonoBehaviour
     public float phoneAttachFraction = 0.5f;
 
     [Tooltip("Seconds to turn toward the book after lifting")]
-    public float turnDuration = 1.0f;
+    public float turnDuration = 0.6f;
 
     [Tooltip("Pause after turning, before jumping back (lets player see the phone)")]
-    public float postTurnPause = 2.0f;
+    public float postTurnPause = 0.8f;
 
     [Tooltip("Arc height for jump back")]
     public float jumpBackHeight = 0.5f;

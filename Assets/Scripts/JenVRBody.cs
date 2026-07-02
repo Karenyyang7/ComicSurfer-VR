@@ -268,10 +268,7 @@ public class JenVRBody : MonoBehaviour
 
         // Guard against zero-length vector (controller exactly at shoulder pivot)
         if (distanceToTarget < 0.001f)
-        {
-            hand.rotation = targetRot;
             return;
-        }
 
         // Clamp target to maximum arm reach
         if (distanceToTarget > totalArmLength * 0.999f)
@@ -317,9 +314,12 @@ public class JenVRBody : MonoBehaviour
             foreArm.rotation = alignFore * foreArm.rotation;
         }
 
-        // ── Hand ────────────────────────────────────────────────────────────────
-        // Match the controller rotation exactly (plus any configured offset).
-        hand.rotation = targetRot;
+        // ── Hand / Wrist ──────────────────────────────────────────────────────────
+        // Wrist is intentionally NOT rigged to the controller — it inherits the forearm's
+        // rotation (set above) so it reads naturally in the mirror (wrist follows the arm).
+        // The visible hand + controller is the model parented to Left/RightRayOrigin (the
+        // wrist), so this bone no longer needs to match the controller.
+        // (Removed: hand.rotation = targetRot;  — kept targetRot computed for reference/offsets.)
     }
 
     Transform FindBoneRecursive(Transform parent, string boneName)

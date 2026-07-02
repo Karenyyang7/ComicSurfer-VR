@@ -38,6 +38,17 @@ public class GlowingBook : MonoBehaviour
     [Tooltip("Intensity multiplier when hovered")]
     public float hoverIntensityMultiplier = 2.5f;
 
+    [Header("=== Portal Halo Light ===")]
+    [Tooltip("Add a real point light so the book visibly glows (used by open_book portal). " +
+             "A light reads as a glow even without bloom/post-processing.")]
+    public bool useGlowLight = false;
+
+    [Tooltip("Peak intensity of the halo light")]
+    public float glowLightIntensity = 1.6f;
+
+    [Tooltip("Range (m) of the halo light")]
+    public float glowLightRange = 2f;
+
     [Header("=== References ===")]
     [Tooltip("Drag UIInstructions object here")]
     public UIInstructions instructions;
@@ -97,6 +108,20 @@ public class GlowingBook : MonoBehaviour
             }
         }
 
+        // Optional real point light so the portal book visibly glows (emission alone is subtle
+        // without bloom). Driven each frame in Update while glowing.
+        if (useGlowLight && glowLight == null)
+        {
+            GameObject haloGO = new GameObject("GlowHaloLight");
+            haloGO.transform.SetParent(transform);
+            haloGO.transform.position = transform.position + Vector3.up * 0.15f;
+            glowLight = haloGO.AddComponent<Light>();
+            glowLight.type = LightType.Point;
+            glowLight.range = glowLightRange;
+            glowLight.shadows = LightShadows.None;
+            glowLight.intensity = 0f;
+        }
+
         // Grab interaction — closedBook only (openBook has no XRGrabInteractable)
         grabInteractable = GetComponent<UnityEngine.XR.Interaction.Toolkit.Interactables.XRGrabInteractable>();
         if (grabInteractable != null)
@@ -117,15 +142,18 @@ public class GlowingBook : MonoBehaviour
         if (!isGlowing) return;
 
         float pulse = (Mathf.Sin(Time.time * pulseSpeed) + 1f) / 2f; // 0–1
+        float lit   = 0.45f + 0.55f * pulse;                          // stays clearly lit (never fully dark)
 
         if (useEmissionProperty && bookMaterial != null)
         {
-            bookMaterial.SetColor("_EmissionColor", glowColor * pulse * glowIntensity);
+            bookMaterial.SetColor("_EmissionColor", glowColor * glowIntensity * lit);
         }
-        else if (glowLight != null)
+
+        // Drive the halo light (when present) alongside the emission so the glow is always visible.
+        if (glowLight != null)
         {
             glowLight.color     = glowColor;
-            glowLight.intensity = pulse * glowIntensity;
+            glowLight.intensity = (useGlowLight ? glowLightIntensity : glowIntensity) * lit;
         }
     }
 
