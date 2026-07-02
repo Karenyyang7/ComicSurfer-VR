@@ -4728,7 +4728,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TimeTunnelTransition
   tunnelDuration: 2.2
   fadeDuration: 0.6
-  blinkDuration: 0.15
+  blinkDuration: 0.28
   blinkCount: 2
   overlayDistance: 0.5
   overlaySize: 12

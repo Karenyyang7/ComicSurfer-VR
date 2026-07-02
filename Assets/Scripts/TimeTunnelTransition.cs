@@ -99,6 +99,18 @@ public class TimeTunnelTransition : MonoBehaviour
     [Tooltip("Arrival sting as the player opens their eyes in the new world")]
     public AudioClip arrivalClip;
 
+    // ---- camera takeover (pure-black void) ----
+    // During the tunnel the camera is switched to render ONLY the overlay layer against
+    // solid black. The backdrop quad alone could not guarantee a black void: transparent
+    // room geometry (e.g. window glass, queue 3000) draws AFTER the backdrop (2400) and
+    // punched through it, as did world-space UI. Culling everything but the overlay layer
+    // is airtight regardless of other objects' shaders/queues.
+    private int _overlayLayer = -1;
+    private CameraClearFlags _savedClear;
+    private Color _savedBg;
+    private int _savedMask;
+    private Camera _takeoverCam;       // camera whose settings we saved
+
     // ---- runtime-built overlay ----
     private Transform _rig;            // root that follows the camera every frame
     private Transform _tunnelRoot;     // holds streak geometry + particles
@@ -127,8 +139,54 @@ public class TimeTunnelTransition : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
 
+        _overlayLayer = FindUnusedLayer();
         BuildOverlay();
+        if (_overlayLayer >= 0) SetLayerRecursively(_rig.gameObject, _overlayLayer);
         SetOverlayActive(false);
+    }
+
+    /// <summary>Highest unnamed user layer (31..8) — unnamed layers are valid and safe to use.</summary>
+    static int FindUnusedLayer()
+    {
+        for (int i = 31; i >= 8; i--)
+            if (string.IsNullOrEmpty(LayerMask.LayerToName(i)))
+                return i;
+        return -1; // all layers named/in use — fall back to backdrop-only behavior
+    }
+
+    static void SetLayerRecursively(GameObject go, int layer)
+    {
+        go.layer = layer;
+        foreach (Transform child in go.transform)
+            SetLayerRecursively(child.gameObject, layer);
+    }
+
+    void BeginCameraTakeover()
+    {
+        if (_overlayLayer < 0 || _cam == null) return;
+        _takeoverCam = _cam;
+        _savedClear = _cam.clearFlags;
+        _savedBg = _cam.backgroundColor;
+        _savedMask = _cam.cullingMask;
+        _cam.clearFlags = CameraClearFlags.SolidColor;
+        _cam.backgroundColor = Color.black;
+        _cam.cullingMask = 1 << _overlayLayer;
+    }
+
+    void EndCameraTakeover()
+    {
+        if (_takeoverCam == null) return;
+        _takeoverCam.clearFlags = _savedClear;
+        _takeoverCam.backgroundColor = _savedBg;
+        _takeoverCam.cullingMask = _savedMask;
+        _takeoverCam = null;
+    }
+
+    /// <summary>The fade quad lives on the overlay layer — make sure the (new) camera renders it.</summary>
+    void EnsureOverlayVisibleTo(Camera cam)
+    {
+        if (_overlayLayer >= 0 && cam != null)
+            cam.cullingMask |= 1 << _overlayLayer;
     }
 
     // -------------------------------------------------------------------------
@@ -355,6 +413,10 @@ public class TimeTunnelTransition : MonoBehaviour
         SetOverlayActive(true);
         SnapToCamera();
 
+        // Pure black void: camera renders ONLY the tunnel/fade overlay layer from the very
+        // first tunnel frame — the room (opaque, transparent, UI, hands) fully disappears.
+        BeginCameraTakeover();
+
         // ---- PHASE 1: time tunnel ----
         if (_tunnelRoot != null) _tunnelRoot.gameObject.SetActive(true);
         _tunnelActive = true;
@@ -379,6 +441,9 @@ public class TimeTunnelTransition : MonoBehaviour
         if (_tunnelRoot != null) _tunnelRoot.gameObject.SetActive(false);
         if (_sfxLoop != null && _sfxLoop.isPlaying) _sfxLoop.Stop();
 
+        // Screen is fully black — release the old camera before it's destroyed by the load.
+        EndCameraTakeover();
+
         // ---- PHASE 3: load the new scene while fully black ----
         if (!string.IsNullOrEmpty(sceneName)) SceneManager.LoadScene(sceneName);
         else SceneManager.LoadScene(buildIndex);
@@ -394,6 +459,7 @@ public class TimeTunnelTransition : MonoBehaviour
             yield return null;
         }
         _cam = Camera.main;         // re-acquire the camera in the loaded scene
+        EnsureOverlayVisibleTo(_cam); // fade quad is on the overlay layer — new camera must render it
         SnapToCamera();
 
         // ---- PHASE 4: blink to reveal the new world ----
