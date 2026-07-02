@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "com.coplaydev.unity-mcp": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#main",
+    "com.coplaydev.unity-mcp": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#v9.7.3",
     "com.unity.ai.inference": "2.5.0",
     "com.unity.ai.navigation": "2.0.10",
     "com.unity.cloud.gltfast": "6.19.0",
