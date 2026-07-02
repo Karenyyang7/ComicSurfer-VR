@@ -89,9 +89,29 @@ Updating the package (9.7.1→9.7.3) restarted the plugin, which then declared t
 - Verified 2D→3D teddy emergence visually (flat silhouette in art → full 3D bear out of the frame).
 - StoryPhaseDriver (DevTest) drives the ENTIRE 7-phase chain headlessly with screenshots per beat — run before every commit touching ComicWorld.
 
+## Story-chain verification (9 headless play-through runs, final = ALL PHASES PASS)
+
+`1e355df` — the big one. StoryPhaseDriver simulates the whole game headlessly (fold teddy → grab → chase thief → win finale) and screenshots every beat. Runs 1-8 each exposed a real gameplay-critical bug; run 9 passed end-to-end:
+
+1. Dialogue is press-through by design (`autoAdvanceDelay=0`, right-trigger advances) — driver needed simulated presses, VR is fine.
+2. Puzzle frames had BOTH XRSimpleInteractable + XRGrabInteractable — simple one stole the collider, frames ungrabbable. Removed.
+3. **ThiefComicWorld/GoldSpirit `Awake(){SetActive(false)}` self-sabotage**: objects start inactive in the scene, so Awake first fired DURING `Appear()`/`PlaySpiritRise()`'s `SetActive(true)` and re-deactivated them, killing the coroutine. Thief could never appear, spirit never rose, Phases 5-7 unreachable. This was probably THE "game stops at 2%" root cause.
+4. Thief flee used 3D distance — player head ~1.7m above thief root meant standing 1m away still read >2m. Now horizontal.
+5. Finale cutouts had gravity and fell out of the 10cm-deep snap zones on release. Now kinematic, zones 0.5×0.6×0.4, snap-to-center on placement.
+6. Nothing called FinalChallenge.OnPhoneGrabbed — wired at runtime in StartChallenge.
+7. Finale frame never activated/positioned — StartChallenge now places it at the challenge area facing the play area; runtime countdown billboard added.
+8. Teddy eye/glow effects were wired to the HIDDEN pose mesh — now applied to both meshes.
+9. Runtime-spawned particles were magenta under URP (default material) + SetBurst silently dropped — fixed.
+10. Dialogue panel world-pinned → now softly follows the player.
+
 ## Known gaps / notes for Karen
 
 - Left-stick move action is unbound in the rig prefab (same in scene 0) — movement is right-stick, as in scene 0.
 - Finale thief theatrics (thief visibly running away with teddy on lose) not built — win/lose logic + frame color swap + dialogue are in.
 - Real comic art still needed for frames 4-16 (numbered placeholders in place; delete the NumberLabel child when dropping art in).
-- 'routine is null' NREs seen once in console during play — watching for recurrence.
+- Comic-world thief body is a static dark figure (Idle.fbx untextured, no animation) — placeholder look; the flee/waypoint/disappear logic all works.
+- Finale frame renders smaller than the story frames — cosmetic, tune its scale.
+- Spirit-rise camera beat unverified visually (it fires and advances phases; effect is particles rising into the teddy).
+- Timer shows the scene's challengeDuration; billboard faces the player in VR.
+- Teddy eyes turn green over 60s after puzzle solve; full gold glow + arm-point at Phase 6 — glow tuned to 0.45 intensity so fur stays readable.
+- 'routine is null' NREs: not seen since run 2 — likely stale; watch console if anything stalls.
