@@ -29,7 +29,9 @@ public class ThiefComicWorld : MonoBehaviour
 
     void Awake()
     {
-        gameObject.SetActive(false);
+        // NOTE: do NOT SetActive(false) here. The thief starts inactive in the scene, so
+        // Awake first runs DURING Appear()'s SetActive(true) — deactivating here killed the
+        // activation and the appear coroutine, leaving the thief permanently hidden.
         _animator = GetComponentInChildren<Animator>();
     }
 
@@ -71,7 +73,9 @@ public class ThiefComicWorld : MonoBehaviour
         {
             if (_player != null)
             {
-                float dist = Vector3.Distance(transform.position, _player.position);
+                // Horizontal distance only — the player's HEAD is ~1.7m above the thief's
+                // ground-level root, so 3D distance made a 1m-away player read as 2m+.
+                float dist = HorizontalDistance(transform.position, _player.position);
                 if (dist < fleeDistance)
                 {
                     currentState = ThiefState.Fleeing;
@@ -112,7 +116,7 @@ public class ThiefComicWorld : MonoBehaviour
             yield return new WaitForSeconds(0.5f);
 
             // Check if player is still close
-            if (_player != null && Vector3.Distance(transform.position, _player.position) > fleeDistance * 2f)
+            if (_player != null && HorizontalDistance(transform.position, _player.position) > fleeDistance * 2f)
             {
                 // Player backed off — go idle at this waypoint
                 currentState = ThiefState.Idle;
@@ -131,6 +135,12 @@ public class ThiefComicWorld : MonoBehaviour
 
         if (ComicWorldManager.Instance != null)
             ComicWorldManager.Instance.StartPhase5();
+    }
+
+    static float HorizontalDistance(Vector3 a, Vector3 b)
+    {
+        a.y = 0f; b.y = 0f;
+        return Vector3.Distance(a, b);
     }
 
     void FaceTarget(Vector3 target)

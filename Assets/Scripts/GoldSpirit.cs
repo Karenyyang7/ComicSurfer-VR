@@ -12,10 +12,9 @@ public class GoldSpirit : MonoBehaviour
 
     public event System.Action OnSpiritEntered;
 
-    void Awake()
-    {
-        gameObject.SetActive(false);
-    }
+    // NOTE: no SetActive(false) in Awake! The spirit starts inactive in the scene, so Awake
+    // first runs DURING PlaySpiritRise's SetActive(true) — deactivating here killed the
+    // activation and the coroutine (same bug as ThiefComicWorld). The scene keeps it inactive.
 
     public void PlaySpiritRise(Vector3 startPos, Transform teddyTarget)
     {

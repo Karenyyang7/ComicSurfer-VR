@@ -64,7 +64,9 @@ public class FrameOrderPuzzle : MonoBehaviour
 
                 if (dist < snapRadius && _placedFrames[z] == 0)
                 {
-                    // Snap it
+                    // Snap it — and freeze its float so it stays put in the slot
+                    var floaty = frame.GetComponent<FloatScript>();
+                    if (floaty != null) floaty.enabled = false;
                     frame.transform.position = snapZones[z].position;
                     frame.transform.rotation = snapZones[z].rotation;
                     _placedFrames[z] = frame.frameIndex;
@@ -150,6 +152,8 @@ public class FrameOrderPuzzle : MonoBehaviour
             if (f != null && f.frameIndex >= 3 && f.frameIndex <= 8 && _frameStartPositions.ContainsKey(f.frameIndex))
             {
                 f.transform.position = _frameStartPositions[f.frameIndex];
+                var floaty = f.GetComponent<FloatScript>();
+                if (floaty != null) { floaty.enabled = true; floaty.ResetOrigin(); }
                 Debug.Log($"[FrameOrderPuzzle] Frame {f.frameIndex} returned to start.");
             }
         }

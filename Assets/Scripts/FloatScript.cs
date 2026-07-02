@@ -3,6 +3,11 @@ using UnityEngine;
 /// <summary>
 /// Gentle floating animation for comic frames.
 /// Each instance gets randomized offsets in Start() so frames don't move in sync.
+///
+/// Grab-aware: while an XRGrabInteractable on this object is selected, floating pauses;
+/// on release the float re-anchors at wherever the player left the frame. The float also
+/// composes with the object's base rotation instead of overwriting it, so frames can face
+/// any direction (and snap zones can rotate them) without the tilt fighting it.
 /// </summary>
 public class FloatScript : MonoBehaviour
 {
@@ -25,6 +30,7 @@ public class FloatScript : MonoBehaviour
     public float tiltPeriod = 8f;
 
     private Vector3 _origin;
+    private Quaternion _baseRotation;
     private float _bobOffset;
     private float _driftOffset;
     private float _tiltOffset;
@@ -35,9 +41,14 @@ public class FloatScript : MonoBehaviour
     private float _driftFreq;
     private float _tiltFreq;
 
+    private UnityEngine.XR.Interaction.Toolkit.Interactables.XRGrabInteractable _grab;
+    private bool _wasSelected;
+
     void Start()
     {
         _origin = transform.position;
+        _baseRotation = transform.rotation;
+        _grab = GetComponent<UnityEngine.XR.Interaction.Toolkit.Interactables.XRGrabInteractable>();
 
         // Randomize everything so frames don't sync
         _bobOffset   = Random.Range(0f, Mathf.PI * 2f);
@@ -59,6 +70,17 @@ public class FloatScript : MonoBehaviour
 
     void Update()
     {
+        // While held: let the hand own the transform; re-anchor on release.
+        if (_grab != null)
+        {
+            if (_grab.isSelected) { _wasSelected = true; return; }
+            if (_wasSelected)
+            {
+                _wasSelected = false;
+                ResetOrigin();
+            }
+        }
+
         float t = Time.time;
 
         float y = _bobAmp   * Mathf.Sin(t * _bobFreq   + _bobOffset);
@@ -66,9 +88,13 @@ public class FloatScript : MonoBehaviour
         float z = _tiltAmt  * Mathf.Sin(t * _tiltFreq  + _tiltOffset);
 
         transform.position = _origin + new Vector3(x, y, 0f);
-        transform.rotation = Quaternion.Euler(0f, 0f, z);
+        transform.rotation = _baseRotation * Quaternion.Euler(0f, 0f, z);
     }
 
-    /// <summary>Re-anchors the float origin to the current world position (call after teleporting a frame).</summary>
-    public void ResetOrigin() => _origin = transform.position;
+    /// <summary>Re-anchors the float origin/rotation to the current pose (call after teleporting a frame).</summary>
+    public void ResetOrigin()
+    {
+        _origin = transform.position;
+        _baseRotation = transform.rotation;
+    }
 }

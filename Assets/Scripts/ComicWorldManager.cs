@@ -51,6 +51,9 @@ public class ComicWorldManager : MonoBehaviour
     public GoldSpirit goldSpirit;
     public BackgroundFrameSpawner backgroundFrameSpawner;
 
+    [Tooltip("Green/gold flowy light wave over the puzzle area — hidden until Phase 3 (after teddy grab), draws the player toward the ordering puzzle")]
+    public GameObject greenGoldWave;
+
     void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
@@ -172,6 +175,10 @@ public class ComicWorldManager : MonoBehaviour
         currentPhase = Phase.Phase3_Puzzle;
         Debug.Log("[ComicWorldManager] Phase 3: Frame puzzle");
 
+        // The green/gold wave appears in the distance, beckoning the player to the puzzle
+        if (greenGoldWave != null)
+            greenGoldWave.SetActive(true);
+
         if (DialogueSystem.Instance != null)
             DialogueSystem.Instance.ShowDialogue(GameDialogue.FramePuzzleIntro);
     }
@@ -179,6 +186,12 @@ public class ComicWorldManager : MonoBehaviour
     public void OnPuzzleSolved()
     {
         Debug.Log("[ComicWorldManager] Puzzle solved!");
+
+        // Story beat: Harriet's eyes lose color, the teddy's eyes slowly turn green/gold
+        // over the next minute (finishes around the time the player has read frames 9-12).
+        if (teddyBear != null)
+            teddyBear.StartEyeTransition(60f);
+
         if (DialogueSystem.Instance != null)
         {
             DialogueSystem.Instance.ShowDialogue(GameDialogue.PuzzleSolvedDialogue);
@@ -221,6 +234,16 @@ public class ComicWorldManager : MonoBehaviour
     {
         currentPhase = Phase.Phase6_FinalChallenge;
         Debug.Log("[ComicWorldManager] Phase 6: Final challenge");
+
+        // The spirit has entered the teddy: full-body gold glow, arm rises and points
+        // the player toward the final challenge area (Frame 2's story location).
+        if (teddyBear != null)
+        {
+            teddyBear.StartGoldGlow();
+            teddyBear.SetPoseRaised();
+            if (finalChallengeArea != null)
+                teddyBear.StartPointing(finalChallengeArea);
+        }
 
         if (DialogueSystem.Instance != null)
             DialogueSystem.Instance.ShowDialogue(GameDialogue.FinalChallengeDialogue);

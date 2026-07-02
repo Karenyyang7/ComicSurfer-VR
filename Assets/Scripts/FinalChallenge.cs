@@ -26,6 +26,10 @@ public class FinalChallenge : MonoBehaviour
     [Tooltip("Optional world-space TextMeshPro timer display")]
     public TextMeshProUGUI timerText;
 
+    [Header("=== Finale Frame ===")]
+    [Tooltip("The finale comic frame (Frame1_Final). Activated + moved to this object's position when the challenge starts.")]
+    public GameObject finaleFrame;
+
     [Header("=== Settings ===")]
     public float challengeDuration = 90f;
 
@@ -38,9 +42,15 @@ public class FinalChallenge : MonoBehaviour
     private bool _cutout1Placed = false;
     private bool _cutout2Placed = false;
     private bool _finished = false;
+    private bool _phoneWired = false;
+    private Transform _timerBillboard;
 
     public void StartChallenge()
     {
+        // The manager may call this while our GameObject is inactive (hidden until Phase 6)
+        // — coroutines and Update need it active.
+        gameObject.SetActive(true);
+
         _timeRemaining = challengeDuration;
         _running = true;
         _phoneGrabbed = false;
@@ -52,9 +62,51 @@ public class FinalChallenge : MonoBehaviour
         if (cutout1 != null) cutout1.SetActive(true);
         if (cutout2 != null) cutout2.SetActive(true);
 
+        // The finale frame appears here. Frames show their art toward -Z at identity rotation
+        // (like Frame1 at z=+3 facing the origin), so aim -Z at the world origin.
+        if (finaleFrame != null)
+        {
+            finaleFrame.transform.position = transform.position;
+            Vector3 toOrigin = Vector3.zero - transform.position;
+            toOrigin.y = 0f;
+            if (toOrigin.sqrMagnitude > 0.001f)
+                finaleFrame.transform.rotation = Quaternion.LookRotation(-toOrigin.normalized);
+            finaleFrame.SetActive(true);
+        }
+
+        // Nothing in the scene called OnPhoneGrabbed — wire the grab event at runtime.
+        if (!_phoneWired && phoneObject != null)
+        {
+            var grab = phoneObject.GetComponent<UnityEngine.XR.Interaction.Toolkit.Interactables.XRGrabInteractable>();
+            if (grab != null)
+            {
+                grab.selectEntered.AddListener(_ => OnPhoneGrabbed());
+                _phoneWired = true;
+            }
+        }
+
+        if (timerText == null) BuildTimerBillboard();
+
         Debug.Log("[FinalChallenge] Challenge started — 90 seconds!");
         StartCoroutine(TimerRoutine());
     }
+
+    /// <summary>World-space countdown above the challenge area, always facing the player.</summary>
+    void BuildTimerBillboard()
+    {
+        var go = new GameObject("TimerBillboard");
+        go.transform.position = transform.position + Vector3.up * 2.4f;
+        var tmp = go.AddComponent<TMPro.TextMeshPro>();
+        tmp.alignment = TMPro.TextAlignmentOptions.Center;
+        tmp.fontSize = 6f;
+        tmp.color = new Color(1f, 0.9f, 0.4f);
+        tmp.fontStyle = TMPro.FontStyles.Bold;
+        tmp.rectTransform.sizeDelta = new Vector2(2f, 0.6f);
+        _timerTmp = tmp; // 3D TextMeshPro (timerText stays null — that field is the UGUI variant)
+        _timerBillboard = go.transform;
+    }
+
+    private TMPro.TextMeshPro _timerTmp;
 
     IEnumerator TimerRoutine()
     {
@@ -62,11 +114,22 @@ public class FinalChallenge : MonoBehaviour
         {
             _timeRemaining -= Time.deltaTime;
 
-            if (timerText != null)
-                timerText.text = Mathf.CeilToInt(_timeRemaining).ToString();
+            string display = Mathf.CeilToInt(_timeRemaining).ToString();
+            if (timerText != null) timerText.text = display;
+            if (_timerTmp != null) _timerTmp.text = display;
+
+            // billboard the countdown toward the player
+            if (_timerBillboard != null && Camera.main != null)
+            {
+                Vector3 look = _timerBillboard.position - Camera.main.transform.position;
+                look.y = 0f;
+                if (look.sqrMagnitude > 0.001f)
+                    _timerBillboard.rotation = Quaternion.LookRotation(look.normalized);
+            }
 
             yield return null;
         }
+        if (_timerTmp != null) _timerTmp.text = "";
 
         if (_running && !_finished)
             TriggerLose();
@@ -112,6 +175,17 @@ public class FinalChallenge : MonoBehaviour
 
     public void OnCutoutPlaced(int index)
     {
+        // Snap the cutout to the zone center so it visibly clicks into place
+        var cutout = index == 1 ? cutout1 : cutout2;
+        var zone = index == 1 ? cutoutSnapZone1 : cutoutSnapZone2;
+        if (cutout != null && zone != null)
+        {
+            cutout.transform.position = zone.bounds.center;
+            cutout.transform.rotation = zone.transform.rotation;
+            var rb = cutout.GetComponent<Rigidbody>();
+            if (rb != null) { rb.isKinematic = true; rb.useGravity = false; }
+        }
+
         if (index == 1) { _cutout1Placed = true; Debug.Log("[FinalChallenge] Cutout 1 placed!"); }
         if (index == 2) { _cutout2Placed = true; Debug.Log("[FinalChallenge] Cutout 2 placed!"); }
         CheckWinCondition();

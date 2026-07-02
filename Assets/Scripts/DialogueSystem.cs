@@ -67,6 +67,36 @@ public class DialogueSystem : MonoBehaviour
             _advanceRequested = true;
     }
 
+    [Header("=== Follow Player ===")]
+    [Tooltip("Dialogue floats this many meters in front of the player's view")]
+    public float followDistance = 2.2f;
+    [Tooltip("Vertical offset from eye height (negative = below eye line)")]
+    public float followHeightOffset = -0.35f;
+    [Tooltip("How quickly the panel catches up to head movement (higher = snappier)")]
+    public float followLerp = 4f;
+
+    // The comic world is ~20m across — a world-pinned dialogue is unreadable once the
+    // player walks off. Softly follow the camera instead (lazy lerp, no head-lock nausea).
+    void LateUpdate()
+    {
+        if (!_isShowing || dialogueCanvas == null) return;
+        var cam = Camera.main;
+        if (cam == null) return;
+
+        Vector3 fwd = cam.transform.forward;
+        fwd.y = 0f;
+        if (fwd.sqrMagnitude < 0.001f) return;
+        fwd.Normalize();
+
+        Vector3 target = cam.transform.position + fwd * followDistance + Vector3.up * followHeightOffset;
+        var t = dialogueCanvas.transform;
+        t.position = Vector3.Lerp(t.position, target, Time.deltaTime * followLerp);
+        Vector3 look = t.position - cam.transform.position;
+        look.y = 0f;
+        if (look.sqrMagnitude > 0.001f)
+            t.rotation = Quaternion.Slerp(t.rotation, Quaternion.LookRotation(look.normalized), Time.deltaTime * followLerp);
+    }
+
     public void ShowDialogue(string[] lines)
     {
         if (lines == null || lines.Length == 0) return;

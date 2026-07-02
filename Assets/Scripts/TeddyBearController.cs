@@ -74,23 +74,44 @@ public class TeddyBearController : MonoBehaviour
         StartCoroutine(LerpEyeColor(duration));
     }
 
+    /// <summary>
+    /// Renderers of BOTH pose meshes. The two poses are separate meshes — applying eye/glow
+    /// changes only to eyeRenderer/bodyRenderer (which point at ONE pose) made the effect
+    /// invisible whenever the other pose was active.
+    /// </summary>
+    System.Collections.Generic.List<Renderer> AllPoseRenderers()
+    {
+        var list = new System.Collections.Generic.List<Renderer>();
+        if (poseNormal != null) list.AddRange(poseNormal.GetComponentsInChildren<Renderer>(true));
+        if (poseRaised != null) list.AddRange(poseRaised.GetComponentsInChildren<Renderer>(true));
+        if (list.Count == 0 && eyeRenderer != null) list.Add(eyeRenderer);
+        return list;
+    }
+
     IEnumerator LerpEyeColor(float duration)
     {
-        if (eyeRenderer == null) yield break;
+        var renderers = AllPoseRenderers();
+        if (renderers.Count == 0) yield break;
 
         // Use materials[] (not material) to target a specific slot on a multi-material renderer.
-        // This creates instanced copies of all slots — intentional, we own this renderer.
-        var mats = eyeRenderer.materials;
-        int idx = Mathf.Clamp(eyeMaterialIndex, 0, mats.Length - 1);
+        // This creates instanced copies of all slots — intentional, we own these renderers.
+        var eyeMats = new System.Collections.Generic.List<Material>();
+        foreach (var r in renderers)
+        {
+            var mats = r.materials;
+            int idx = Mathf.Clamp(eyeMaterialIndex, 0, mats.Length - 1);
+            eyeMats.Add(mats[idx]);
+        }
 
         float t = 0f;
         while (t < duration)
         {
             t += Time.deltaTime;
-            mats[idx].color = Color.Lerp(eyeColorStart, eyeColorEnd, t / duration);
+            Color c = Color.Lerp(eyeColorStart, eyeColorEnd, t / duration);
+            foreach (var m in eyeMats) { m.color = c; if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", c); }
             yield return null;
         }
-        mats[idx].color = eyeColorEnd;
+        foreach (var m in eyeMats) { m.color = eyeColorEnd; if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", eyeColorEnd); }
         Debug.Log("[TeddyBearController] Eye transition complete.");
     }
 
@@ -100,10 +121,14 @@ public class TeddyBearController : MonoBehaviour
     {
         currentState = TeddyState.Glowing;
 
-        if (bodyRenderer != null)
+        // Whole-body gold glow on BOTH pose meshes (emission on every material slot)
+        foreach (var r in AllPoseRenderers())
         {
-            bodyRenderer.material.EnableKeyword("_EMISSION");
-            bodyRenderer.material.SetColor("_EmissionColor", new Color(1f, 0.8f, 0.1f) * 2f);
+            foreach (var m in r.materials)
+            {
+                m.EnableKeyword("_EMISSION");
+                m.SetColor("_EmissionColor", new Color(1f, 0.8f, 0.1f) * 0.45f); // 1.2 was a solid yellow blob - keep the fur readable
+            }
         }
 
         if (goldPointLight != null)

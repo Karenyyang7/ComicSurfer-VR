@@ -74,8 +74,24 @@ Updating the package (9.7.1→9.7.3) restarted the plugin, which then declared t
 - `b8c4634` MCP for Unity 9.7.1 → 9.7.3, manifest pinned to tag; work log added.
 - (pending commit) ThiefSpawner.cs: turn dead-zone 10cm→1cm; aim at actual phone object; attach phone at hand's closest approach (`attachDistance`, new `AttachPhoneOnHandContact`) instead of clip fraction; Lift exit wait capped by new `liftExitMaxWait` (default 0.5s, was 2s).
 
-## Plans / next steps
+## Scene 0 — DONE (all 5 fixes verified via headless play-mode filming)
 
-1. When editor is back: compile-check ThiefSpawner, tune scene timing values (preGrabPause 0.4→0.25, postTurnPause 0.4→0.2), move wpTableEdge slightly toward the phone, play-mode screenshot test of thief + phone grip pose, commit.
-2. Tunnel: play-mode verify backdrop is black; slow blink to ~0.28; commit.
-3. Scene 1 in story order: player rig first (unblocks everything), then environment (square frames, numbers, lighting), Frame-1 fold+teddy, puzzle, thief/spirit, finale, dialogue pass.
+- `981f050` Thief: turn-to-real-phone, attach-on-hand-contact (closest approach), lift dead-tail cut (7.2s clip → play to 72%), lands 10cm closer, pauses tightened. Sequence ~11s (was ~19s). Filmed frame-by-frame: reach hits the phone, grab at contact, admire-at-face-height beat kept.
+- `9fe1bdd` Tunnel: pure-black space void via CAMERA CULLING-MASK TAKEOVER (backdrop quad alone couldn't stop window glass/UI from punching through). Blink 0.15→0.28. Filmed: black void + streaks only → ComicWorld reveal.
+
+## Scene 1 — build log
+
+- Batchmode + `UNITY_MCP_ALLOW_BATCH=1` + `MCPForUnity.AutoStartOnLoad` pref = fully working headless editor (screenshots + play mode incl.) while the Mac is locked. THE overnight setup for this project.
+- **Big finds**: ComicWorld already had the full JenPlayerRig (identical overrides to scene 0 — locomotion config was NOT the problem). All 17 frames + manager phase chain existed. The real blockers were: Frame1's XRSimpleInteractable STEALING the teddy/edge-grab colliders (teddy could never be grabbed), Frame1_Final sharing frameIndex=1 (double-activation), teddy = black blob (wrong submesh colors + lighting), frames portrait not square, puzzle frames not grabbable, FloatScript fighting hands/snap zones, teddy story beats (eyes/glow/pointing) never triggered by the manager.
+- `aa22160` square frames + TMP number placeholders (big center number on empty frames, corner badge on frames with art) + collider-theft fix.
+- `13cd4f6` teddy warm brown (visible body = fabric_white submesh — FBX has TWO bear meshes as poses), pose refs unswapped, ambient (0.16,0.17,0.28), key light aimed at player-facing side.
+- (this commit) FloatScript grab-aware + base-rotation-composing; puzzle disables float on snap/re-enables on return; frames 3-8 XRGrabInteractable (kinematic, no throw, dynamic attach); Frame1_Final→frameIndex 99; 6 translucent green slot visuals on snap zones; GreenGoldWave particle field (green+gold flows + point light) at the puzzle area, activated at Phase 3; manager now triggers teddy eye transition (60s) on puzzle solve and gold glow + raised pose + pointing at finalChallengeArea on Phase 6.
+- Verified 2D→3D teddy emergence visually (flat silhouette in art → full 3D bear out of the frame).
+- StoryPhaseDriver (DevTest) drives the ENTIRE 7-phase chain headlessly with screenshots per beat — run before every commit touching ComicWorld.
+
+## Known gaps / notes for Karen
+
+- Left-stick move action is unbound in the rig prefab (same in scene 0) — movement is right-stick, as in scene 0.
+- Finale thief theatrics (thief visibly running away with teddy on lose) not built — win/lose logic + frame color swap + dialogue are in.
+- Real comic art still needed for frames 4-16 (numbered placeholders in place; delete the NumberLabel child when dropping art in).
+- 'routine is null' NREs seen once in console during play — watching for recurrence.

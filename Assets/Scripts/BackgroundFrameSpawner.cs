@@ -143,12 +143,13 @@ public class BackgroundFrameSpawner : MonoBehaviour
         main.startSize = 0.04f;
 
         var emission = ps.emission;
-        emission.SetBurst(0, new ParticleSystem.Burst(0f, 20));
+        emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 20) }); // SetBurst(0,..) no-ops on an empty bursts array
 
         var shape = ps.shape;
         shape.shapeType = ParticleSystemShapeType.Sphere;
         shape.radius = 0.3f;
 
+        ParticleMaterialUtil.Apply(ps);
         Destroy(psGO, 1.5f);
     }
 

@@ -85,8 +85,9 @@ public class ComicFrame : MonoBehaviour
             main.startLifetime = 0.8f;
             main.startSpeed = 3f;
             var emission = ps.emission;
-            emission.SetBurst(0, new ParticleSystem.Burst(0f, 30));
-            Destroy(psGO, 2f);
+            emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 30) }); // SetBurst(0,..) no-ops on an empty bursts array
+            ParticleMaterialUtil.Apply(ps);
+        Destroy(psGO, 2f);
         }
 
         OnFrameShattered?.Invoke();
