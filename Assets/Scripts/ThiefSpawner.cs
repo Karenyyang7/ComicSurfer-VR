@@ -67,9 +67,24 @@ public class ThiefSpawner : MonoBehaviour
     [Tooltip("Pause after turning toward the phone — thief 'sees' it before grabbing")]
     public float preGrabPause = 0.8f;
 
-    [Tooltip("Fraction (0-1) through the Lift animation at which the phone attaches to hand")]
+    [Tooltip("Fraction (0-1) through the Lift animation at which the phone attaches to hand. " +
+             "Only used as FALLBACK when no hand bone is assigned — with a hand bone the phone " +
+             "attaches at the hand's closest approach to the phone (no more teleport look).")]
     [Range(0f, 1f)]
     public float phoneAttachFraction = 0.5f;
+
+    [Tooltip("Hand-to-phone distance (m) at which the phone snaps into the hand during Lift")]
+    public float attachDistance = 0.09f;
+
+    [Tooltip("Max seconds to wait for the Lift state to exit after the clip finishes (was hardcoded 2s — caused a visible stall after pickup)")]
+    public float liftExitMaxWait = 0.5f;
+
+    [Tooltip("Fraction of the Lift clip to play before moving on. The 7.2s clip: reach down ~15%, grab ~20%, admire phone at face height 30-70%, then a long idle tail. Cutting at ~0.72 keeps the admire beat and skips the dead tail (the turn plays over the hand-lowering).")]
+    [Range(0.3f, 0.95f)]
+    public float liftEndFraction = 0.72f;
+
+    [Tooltip("Animator speed during the Lift (1 = authored speed). 0.6 looked sluggish; 0.75 keeps the deliberate feel but tightens the beat.")]
+    public float liftAnimSpeed = 0.75f;
 
     [Tooltip("Seconds to turn toward the book after lifting")]
     public float turnDuration = 0.6f;
@@ -164,8 +179,11 @@ public class ThiefSpawner : MonoBehaviour
         yield return new WaitForSeconds(standPauseDuration);
 
         // ── PHASE 3: Turn toward phone ─────────────────────────────────────────
+        // Aim at the ACTUAL phone object (not the waypoint) so the body squarely faces
+        // what the hand is about to grab.
         Debug.Log("Phase 3: Turning toward phone");
-        yield return StartCoroutine(SmoothTurn(phonePos, turnDuration));
+        Vector3 phoneLookTarget = phoneObject != null ? phoneObject.transform.position : phonePos;
+        yield return StartCoroutine(SmoothTurn(phoneLookTarget, turnDuration));
 
         // ── PHASE 4: Dramatic pause — thief spots the phone ───────────────────
         yield return new WaitForSeconds(preGrabPause);
@@ -173,21 +191,30 @@ public class ThiefSpawner : MonoBehaviour
         // ── PHASE 5: Lift phone (slow, in place) ──────────────────────────────
         Debug.Log("Phase 5: Lifting phone");
 
-        if (thiefAnimator != null) thiefAnimator.speed = 0.6f;
+        if (thiefAnimator != null) thiefAnimator.speed = liftAnimSpeed;
         if (thiefAnimator != null) thiefAnimator.SetTrigger("Lift");
 
         // Wait to enter Lifting state (up to 1s for transition)
         yield return StartCoroutine(WaitToEnterState(liftStateName, 1f));
 
-        // Poll until Lifting's normalizedTime reaches the attach point, then attach phone
-        yield return StartCoroutine(WaitForNormalizedTime(liftStateName, phoneAttachFraction));
-        AttachPhone();
+        // Attach the phone the moment the HAND actually reaches it (closest approach),
+        // instead of at a fixed clip fraction — kills the "phone teleports into hand" look.
+        if (thiefHandBone != null && phoneObject != null)
+            yield return StartCoroutine(AttachPhoneOnHandContact());
+        else
+        {
+            yield return StartCoroutine(WaitForNormalizedTime(liftStateName, phoneAttachFraction));
+            AttachPhone();
+        }
 
-        // Wait for the full Lifting clip to play through (normalizedTime >= 0.95)
-        yield return StartCoroutine(WaitForNormalizedTime(liftStateName, 0.95f));
-        // Then wait until the state has actually exited (exit-time transition finishes)
+        // Play the Lift only up to liftEndFraction — the rest of the clip is a slow idle tail;
+        // the turn toward the book (next phase) plays naturally over the hand-lowering motion.
+        yield return StartCoroutine(WaitForNormalizedTime(liftStateName, liftEndFraction));
+        // Then wait until the state has actually exited (exit-time transition finishes).
+        // Capped by liftExitMaxWait — the old hardcoded 2s cap caused a visible stall
+        // after the pickup when the exit transition was slow.
         float exitWait = 0f;
-        while (exitWait < 2f && thiefAnimator != null && thiefAnimator.GetCurrentAnimatorStateInfo(0).IsName(liftStateName))
+        while (exitWait < liftExitMaxWait && thiefAnimator != null && thiefAnimator.GetCurrentAnimatorStateInfo(0).IsName(liftStateName))
         {
             exitWait += Time.deltaTime;
             yield return null;
@@ -227,6 +254,47 @@ public class ThiefSpawner : MonoBehaviour
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// During the Lift state, watches the distance between the hand bone and the phone and
+    /// attaches the phone at the hand's CLOSEST APPROACH: either when the hand comes within
+    /// attachDistance, or when the distance starts increasing again after its minimum
+    /// (whichever happens first). Falls back to attaching at 90% through the clip.
+    /// </summary>
+    IEnumerator AttachPhoneOnHandContact()
+    {
+        float minDist = float.MaxValue;
+        bool attached = false;
+
+        while (thiefAnimator != null &&
+               thiefAnimator.GetCurrentAnimatorStateInfo(0).IsName(liftStateName) &&
+               thiefAnimator.GetCurrentAnimatorStateInfo(0).normalizedTime < 0.9f)
+        {
+            float dist = Vector3.Distance(thiefHandBone.position, phoneObject.transform.position);
+
+            if (dist <= attachDistance)
+            {
+                AttachPhone();
+                attached = true;
+                break;
+            }
+
+            // Passed the closest point (hand moving away again after approaching) — attach now
+            // so the phone never visibly lags behind the retreating hand.
+            if (dist > minDist + 0.02f && minDist < 0.35f)
+            {
+                AttachPhone();
+                attached = true;
+                break;
+            }
+
+            minDist = Mathf.Min(minDist, dist);
+            yield return null;
+        }
+
+        if (!attached)
+            AttachPhone(); // fallback: clip nearly done, make sure the phone leaves the table
+    }
 
     void AttachPhone()
     {
@@ -350,7 +418,9 @@ public class ThiefSpawner : MonoBehaviour
     {
         Vector3 dir = targetPos - thiefModel.transform.position;
         dir.y = 0;
-        if (dir.sqrMagnitude < 0.01f) yield break;
+        // Threshold must be TINY: the thief lands right next to the phone, so a 10cm (0.01 sqr)
+        // dead-zone silently skipped the whole turn — the "doesn't turn toward the phone" bug.
+        if (dir.sqrMagnitude < 0.0001f) yield break;
 
         Quaternion endRot      = Quaternion.LookRotation(dir.normalized); // face TOWARD target (+Z forward, same convention as FaceTarget)
         float      totalAngle  = Quaternion.Angle(thiefModel.transform.rotation, endRot);

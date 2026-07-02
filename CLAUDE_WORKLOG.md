@@ -50,11 +50,32 @@ Running log of changes, observations, and plans. Newest entries at the bottom of
   - Unity was focused via AppleScript before the package resolve (bridge only reconnects with editor focused); will re-focus programmatically whenever a domain reload is needed.
   - The umcp.py HTTP client re-initializes its MCP session automatically if it goes stale — independent of Claude's own MCP registration.
 
+## Key observations (root causes found)
+
+**Thief animation (scene 0):**
+- `SmoothTurn` had a 10cm dead-zone (`dir.sqrMagnitude < 0.01`) — thief lands right next to the phone, so the whole turn was being silently SKIPPED. This is the main "doesn't turn toward the phone" bug.
+- Phone attached at 12% through the Lift clip (`phoneAttachFraction: 0.12` in scene) — long before the hand reaches the table → "teleports into hand."
+- Hidden up-to-2s wait for the Lift state to exit → the too-long pause after pickup.
+
+**Tunnel backdrop (scene 0):** The black-backdrop system (TunnelBackdrop shader/mat, ZTest Always) EXISTS and is fully wired in the scene — but it was all added in uncommitted work AFTER Karen's last VR test. May already be fixed; needs play-mode verification, not code changes. Same for the blink: will bump `blinkDuration` 0.15 → ~0.28 in the scene.
+
+**Teddy bear "dark/weird" (scene 1):** bears.fbx materials have NO textures wired (only 2 normal-map refs in the FBX; it's a solid-color-material model). `Material.012` base color is near-BLACK (0.024) and `fabric_white` has the same BROWN color as fabric_brown. Plus scene ambient is very dark (0.04, 0.04, 0.14 flat). Fix = correct material colors + lighting, verify visually via screenshots.
+
+**ComicWorld scene state (from full audit):** WAY more built than "2%" — all 15 scripts exist, are attached in the scene, and ComicWorldManager's references are wired (16 frames, teddy, thief, spirit, final challenge, dialogue, spawners, waypoints, snap zones all present). 7-phase manager matches the game-mechanics draft. **The #1 missing piece: THERE IS NO PLAYER RIG IN THE SCENE — no XR Origin, no camera.** That's why "the player can't even move." Plan: instantiate JenPlayerRig.prefab (same rig as scene 0 → same locomotion).
+Remaining scene-1 gaps: square frames + number placeholders, FrameEnlarger edge-grab wiring on Frame 1, teddy look, green/gold wave particles at GreenLightLocation, thief look in comic world (PLACEHOLDER_ThiefComicWorld), finale cutouts/materials, overall lighting/visual pass, end-to-end play test.
+
+## MCP for Unity update saga (for future reference)
+
+Updating the package (9.7.1→9.7.3) restarted the plugin, which then declared the still-running 9.7.1 server "orphaned" and dropped the bridge. Restarted the server as `uvx --from mcpforunityserver==9.7.3` (same port 8080 + same instance token from Library/MCPForUnity/TerminalScripts/mcp-terminal.command). Unity then FROZE processing the update — editor update loop stalled (likely a modal dialog) with the display asleep, and `caffeinate -is` does NOT keep the display awake (need `-d`!). Editor was restarted headlessly via `open -a ... --args -projectPath`; now running `caffeinate -dis`. NSAppSleepDisabled for Unity takes effect from this relaunch onward.
+
 ## Changes
 
-(committed fixes will be listed here as they land)
+- `af78a44` Baseline commit of pre-session state.
+- `b8c4634` MCP for Unity 9.7.1 → 9.7.3, manifest pinned to tag; work log added.
+- (pending commit) ThiefSpawner.cs: turn dead-zone 10cm→1cm; aim at actual phone object; attach phone at hand's closest approach (`attachDistance`, new `AttachPhoneOnHandContact`) instead of clip fraction; Lift exit wait capped by new `liftExitMaxWait` (default 0.5s, was 2s).
 
 ## Plans / next steps
 
-1. Scene 0 fixes in order: thief turn/landing → phone grip → timing → tunnel backdrop → blink speed. Screenshot-verify each in play mode where possible.
-2. Audit ComicWorld scene + scripts, then build phase by phase in story order.
+1. When editor is back: compile-check ThiefSpawner, tune scene timing values (preGrabPause 0.4→0.25, postTurnPause 0.4→0.2), move wpTableEdge slightly toward the phone, play-mode screenshot test of thief + phone grip pose, commit.
+2. Tunnel: play-mode verify backdrop is black; slow blink to ~0.28; commit.
+3. Scene 1 in story order: player rig first (unblocks everything), then environment (square frames, numbers, lighting), Frame-1 fold+teddy, puzzle, thief/spirit, finale, dialogue pass.
