@@ -17,6 +17,7 @@ public class TeddyBear2Dto3D : MonoBehaviour
 
     public event System.Action OnTeddyGrabbed;
 
+    private Vector3 _baseScale = Vector3.one;
     private XRGrabInteractable _grab;
     private bool _grabbable = false;
     private bool _grabbed = false;
@@ -26,8 +27,10 @@ public class TeddyBear2Dto3D : MonoBehaviour
         if (teddyModel == null)
             teddyModel = gameObject;
 
-        // Start flat
-        teddyModel.transform.localScale = new Vector3(1f, 1f, flatZ);
+        // Start flat. Preserve the authored X/Y scale (the teddy is sized to overlay the
+        // drawn teddy in the frame art) — only Z is flattened.
+        _baseScale = teddyModel.transform.localScale;
+        teddyModel.transform.localScale = new Vector3(_baseScale.x, _baseScale.y, _baseScale.z * flatZ);
 
         _grab = GetComponent<XRGrabInteractable>();
         if (_grab == null) _grab = GetComponentInChildren<XRGrabInteractable>();
@@ -45,7 +48,7 @@ public class TeddyBear2Dto3D : MonoBehaviour
     public void UpdateTransitionState(float t)
     {
         float zScale = Mathf.Lerp(flatZ, 1f, t);
-        teddyModel.transform.localScale = new Vector3(1f, 1f, zScale);
+        teddyModel.transform.localScale = new Vector3(_baseScale.x, _baseScale.y, _baseScale.z * zScale);
 
         if (t >= 0.99f && !_grabbable)
         {
@@ -55,6 +58,9 @@ public class TeddyBear2Dto3D : MonoBehaviour
         }
     }
 
+    [Tooltip("World scale of the teddy once carried. The frame is ~3x enlarged at grab time and the teddy inherits that — without normalizing, the player would hold a 2m bear.")]
+    public float carriedScale = 0.45f;
+
     void OnGrabbed(UnityEngine.XR.Interaction.Toolkit.SelectEnterEventArgs args)
     {
         if (_grabbed) return;
@@ -63,9 +69,26 @@ public class TeddyBear2Dto3D : MonoBehaviour
         // Detach from Frame1 so the frame doesn't follow the player's hand
         transform.SetParent(null);
 
+        // Shrink from inherited frame scale (~3x) down to a carryable teddy
+        StartCoroutine(ShrinkToCarrySize());
+
         Debug.Log("[TeddyBear2Dto3D] Teddy grabbed — detached from Frame1.");
         OnTeddyGrabbed?.Invoke();
 
         DialogueSystem.Instance?.ShowDialogue(GameDialogue.TeddyGrabbedDialogue);
+    }
+
+    System.Collections.IEnumerator ShrinkToCarrySize()
+    {
+        Vector3 from = transform.localScale;
+        Vector3 to = Vector3.one * carriedScale;
+        float dur = 0.45f, t = 0f;
+        while (t < dur)
+        {
+            t += Time.deltaTime;
+            transform.localScale = Vector3.Lerp(from, to, t / dur);
+            yield return null;
+        }
+        transform.localScale = to;
     }
 }
