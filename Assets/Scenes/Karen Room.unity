@@ -4742,9 +4742,9 @@ MonoBehaviour:
   - {r: 1, g: 0.9, b: 0.4, a: 1}
   - {r: 0.45, g: 1, b: 0.85, a: 1}
   - {r: 1, g: 1, b: 1, a: 1}
-  whooshClip: {fileID: 0}
-  blinkClip: {fileID: 0}
-  arrivalClip: {fileID: 0}
+  whooshClip: {fileID: 8300000, guid: e2ef3431c73594968b67c77d8d375480, type: 3}
+  blinkClip: {fileID: 8300000, guid: 18de7efcb2c374fb5a38fc1d1449459d, type: 3}
+  arrivalClip: {fileID: 8300000, guid: 27ba0929e605a4638982b87bb909bf77, type: 3}
 --- !u!4 &1404657902
 Transform:
   m_ObjectHideFlags: 0

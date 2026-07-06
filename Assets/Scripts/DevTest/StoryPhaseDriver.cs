@@ -91,6 +91,9 @@ public class StoryPhaseDriver : MonoBehaviour
             }
             yield return CapSet("p1_teddy_in_hand", t2d3d.transform.position, 1.2f, 0.45f);
             if (ray.isPerformingManualInteraction) ray.EndManualInteraction();
+            // place-down behavior: teddy should stay put and turn to face the player
+            yield return new WaitForSeconds(0.8f);
+            Cap("p1_teddy_placed_down");
         }
         else
         {
@@ -100,7 +103,7 @@ public class StoryPhaseDriver : MonoBehaviour
         yield return new WaitForSeconds(4f);
         Look(new Vector3(0f, 2.2f, -3f), new Vector3(2f, 1.5f, 2f));
         Cap("p2_world_reveal");
-        Check(_mgr.currentPhase == ComicWorldManager.Phase.Phase2_Frame2, "Phase2 reached");
+        Check(_mgr.currentPhase >= ComicWorldManager.Phase.Phase2_Frame2, "Phase2 reached (or beyond — tear-free advances fast)");
 
         // ---- wait for PHASE 3 (dialogue auto-advance) ----
         yield return WaitPhase(ComicWorldManager.Phase.Phase3_Puzzle, 40f);
