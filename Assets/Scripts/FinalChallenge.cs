@@ -95,7 +95,7 @@ public class FinalChallenge : MonoBehaviour
     void BuildTimerBillboard()
     {
         var go = new GameObject("TimerBillboard");
-        go.transform.position = transform.position + Vector3.up * 2.4f;
+        go.transform.position = transform.position + Vector3.up * 1.4f;
         var tmp = go.AddComponent<TMPro.TextMeshPro>();
         tmp.alignment = TMPro.TextAlignmentOptions.Center;
         tmp.fontSize = 6f;

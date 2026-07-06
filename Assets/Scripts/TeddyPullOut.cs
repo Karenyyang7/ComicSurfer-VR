@@ -49,11 +49,16 @@ public class TeddyPullOut : MonoBehaviour
     IEnumerator WatchPull(UnityEngine.XR.Interaction.Toolkit.Interactors.IXRSelectInteractor interactor)
     {
         _watching = true;
-        Vector3 anchorWorld = _anchorParent != null ? _anchorParent.TransformPoint(_anchorPos) : _anchorPos;
+        // Measure the HAND's travel after grabbing — measuring teddy-vs-frame distance
+        // made a ray-grab from afar count as an instant max-pull (the teddy teleports
+        // to the hand on attach).
+        var handT = interactor.transform;
+        yield return null;                       // let the attach settle
+        Vector3 handStart = handT.position;
 
         while (_grab.isSelected && !_free)
         {
-            float pull = Vector3.Distance(transform.position, anchorWorld);
+            float pull = Vector3.Distance(handT.position, handStart);
 
             // the frame stretches with the pull
             if (foldRoot != null)

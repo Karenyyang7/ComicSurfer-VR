@@ -1,5 +1,20 @@
 # Claude Work Log
 
+## Session 4 (2026-07-06→7 overnight, the 15-hour build) — in progress
+
+Karen's round-4 feedback + full-game directive. Landed so far (each verified by driver runs + multi-angle audits):
+- **Phone grip**: iterated in a close-up "grip lab" — phone now sits in the finger curl, thumb behind, screen out (`v6`: offset (0.01,0.05,0.012), rot (0,90,12) on the scale-1 carrier).
+- **Frame 1 pyramid fold**: 4 corner QUADRANTS hinged at the center fold back 45° — teddy at the apex, art scrambles, push zones at the corners (solid colliders; hand-touch or laser).
+- **Force-pull teddy**: 3 tugs; frame stretches with each pull; elastic slip-back twice; 3rd tug blasts the quadrants apart as spinning art shards (ShatterFX) + big burst. Teddy hidden until first push (drawn teddy = the 2D state).
+- **World break**: 2.6s cascade of BG shatters + rumble; story frames then pop in one-by-one.
+- **SFX**: 24 synthesized clips wired into every beat + ambient space loop + tunnel whoosh/blink/arrival in scene 0. All in Resources/Audio — replace files by name to upgrade.
+- **Thief in ComicWorld**: fill light + Idle↔Run animator (runs while fleeing).
+- **Teddy**: chocolate-brown matched to the art, slightly chubbier; place-down turns to face the player; regrab works (real held-grab verified every run).
+- **Finale cutouts**: flat character quads cropped from the frame art.
+- **Spirit**: swirling golden column + glow light.
+- **Beauty**: URP bloom/vignette/color volume, galaxy skybox, procedural emissive flowing-galaxy ground, BG frames excluded from Frame 1's space.
+
+
 ## Session 3b (2026-07-06) — VR feedback round 3 (`7aad832`)
 
 All four reports root-caused and fixed, plus a testing-process overhaul:
