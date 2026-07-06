@@ -2,6 +2,8 @@
 
 ## Session 4 (2026-07-06→7 overnight, the 15-hour build) — shipped through run 17 (11/11 PASS, no failures)
 
+Post-run-17 additions: ComicWorld thief was hidden INSIDE the old placeholder capsule (only his shadow rendered) — capsule removed, he's a visible animated ninja with gold eye sparkles now. LOSE path verified end-to-end (timer expiry → lose sting → finale frame goes B/W → Phase 7). Note: macOS /tmp cleanup deleted my bridge tooling mid-session at midnight — rebuilt; test screenshots in /tmp are ephemeral, PASS/FAIL logs preserved here.
+
 Also fixed late in the session: tug metric = hand travel after grab (ray-grabs from afar counted as instant pulls); finale area moved past the 9-12 frame cluster (their mirrored back-side labels read as giant text); story frames 9-16 face the center; countdown at eye height. Fresh APK built from `cb6a22a`.
 
 
