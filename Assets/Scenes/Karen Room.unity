@@ -1496,7 +1496,7 @@ MonoBehaviour:
   liftEndFraction: 0.72
   liftAnimSpeed: 0.75
   turnDuration: 0.5
-  phoneTurnOvershoot: -14.269531
+  phoneTurnOvershoot: -60.4
   postTurnPause: 0.2
   jumpBackHeight: 0.12
   jumpOutStateName: JumpOut

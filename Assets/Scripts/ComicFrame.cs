@@ -84,6 +84,7 @@ public class ComicFrame : MonoBehaviour
             main.startColor = new Color(1f, 0.8f, 0.2f);
             main.startLifetime = 0.8f;
             main.startSpeed = 3f;
+            main.startSize = new ParticleSystem.MinMaxCurve(0.03f, 0.09f); // default is 1 METER - giant blob in VR
             var emission = ps.emission;
             emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 30) }); // SetBurst(0,..) no-ops on an empty bursts array
             ParticleMaterialUtil.Apply(ps);

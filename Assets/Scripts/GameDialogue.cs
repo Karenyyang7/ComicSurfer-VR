@@ -14,8 +14,8 @@ public static class GameDialogue
     {
         "Wait... I'm inside my favorite comic book!",
         "Everything is so... flat.",
-        "What's this frame? The edges are glowing...",
-        "Maybe I can grab both edges and pull them apart!"
+        "What's this frame? I can almost feel its edges...",
+        "Maybe I can PUSH the edges back into the page!"
     };
 
     public static string[] Frame2Dialogue = new string[]

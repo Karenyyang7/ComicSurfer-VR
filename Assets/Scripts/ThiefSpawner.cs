@@ -254,6 +254,8 @@ public class ThiefSpawner : MonoBehaviour
         // ── PHASE 8: Disappear ─────────────────────────────────────────────────
         Debug.Log("Phase 8: Disappearing");
         thiefModel.SetActive(false);
+        // he takes the phone with him — the scale-1 carrier isn't under the thief hierarchy
+        if (_phoneCarrier != null) _phoneCarrier.gameObject.SetActive(false);
 
         // BookPortalTrigger.OnThiefSequenceComplete() handles glow + interaction wiring
         Debug.Log("=== THIEF SEQUENCE COMPLETE ===");
@@ -279,17 +281,10 @@ public class ThiefSpawner : MonoBehaviour
         {
             float dist = Vector3.Distance(thiefHandBone.position, phoneObject.transform.position);
 
-            if (dist <= attachDistance)
+            if (dist <= attachDistance || (dist > minDist + 0.02f && minDist < 0.35f))
             {
-                AttachPhone();
-                attached = true;
-                break;
-            }
-
-            // Passed the closest point (hand moving away again after approaching) — attach now
-            // so the phone never visibly lags behind the retreating hand.
-            if (dist > minDist + 0.02f && minDist < 0.35f)
-            {
+                Debug.Log($"[ThiefSpawner] runtime hand-phone gap at attach: {Mathf.Min(dist, minDist):F3}m");
+                yield return StartCoroutine(MagnetizePhoneToHand(0.1f));
                 AttachPhone();
                 attached = true;
                 break;
@@ -300,7 +295,30 @@ public class ThiefSpawner : MonoBehaviour
         }
 
         if (!attached)
+        {
+            yield return StartCoroutine(MagnetizePhoneToHand(0.1f));
             AttachPhone(); // fallback: clip nearly done, make sure the phone leaves the table
+        }
+    }
+
+    private Transform _phoneCarrier; // scale-1 proxy that follows the hand bone
+
+    /// <summary>
+    /// Slides the phone the last few cm into the hand — covers the small vertical gap
+    /// between the animation's lowest hand point and the tabletop, so the pickup reads
+    /// as actual contact instead of a teleport.
+    /// </summary>
+    IEnumerator MagnetizePhoneToHand(float duration)
+    {
+        if (phoneObject == null || thiefHandBone == null) yield break;
+        Vector3 start = phoneObject.transform.position;
+        float e = 0f;
+        while (e < duration)
+        {
+            e += Time.deltaTime;
+            phoneObject.transform.position = Vector3.Lerp(start, thiefHandBone.position, Mathf.Clamp01(e / duration));
+            yield return null;
+        }
     }
 
     void AttachPhone()
@@ -309,10 +327,23 @@ public class ThiefSpawner : MonoBehaviour
 
         if (thiefHandBone != null)
         {
-            phoneObject.transform.SetParent(thiefHandBone);
+            // NEVER parent the phone directly to a Mixamo bone: the rig's bones carry
+            // 100x import scale (x0.7 thief root), which distorts the phone into a
+            // stretched white slab. Instead parent to a scale-1 carrier that follows
+            // the bone in LateUpdate (same pattern as the player's wrist ray origins).
+            if (_phoneCarrier == null)
+            {
+                var go = new GameObject("PhoneCarrier");
+                _phoneCarrier = go.transform;
+            }
+            _phoneCarrier.SetPositionAndRotation(thiefHandBone.position, thiefHandBone.rotation);
+            _phoneCarrier.localScale = Vector3.one;
+
+            Vector3 keepWorldScale = phoneObject.transform.lossyScale;
+            phoneObject.transform.SetParent(_phoneCarrier, true);
             phoneObject.transform.localPosition = phoneLocalOffset;
             phoneObject.transform.localRotation = Quaternion.Euler(phoneLocalRotation);
-            phoneObject.transform.localScale = Vector3.one * phoneScale;
+            phoneObject.transform.localScale = keepWorldScale * phoneScale; // carrier is scale-1: local == world
 
             Rigidbody phoneRb = phoneObject.GetComponent<Rigidbody>();
             if (phoneRb != null) phoneRb.isKinematic = true;
@@ -320,13 +351,20 @@ public class ThiefSpawner : MonoBehaviour
             var phoneGrab = phoneObject.GetComponent<UnityEngine.XR.Interaction.Toolkit.Interactables.XRGrabInteractable>();
             if (phoneGrab != null) phoneGrab.enabled = false;
 
-            Debug.Log("Phone attached to thief hand");
+            Debug.Log("Phone attached to scale-1 carrier following thief hand");
         }
         else
         {
             phoneObject.SetActive(false);
             Debug.Log("Phone hidden (no hand bone assigned)");
         }
+    }
+
+    void LateUpdate()
+    {
+        // carrier follows the hand bone while the phone is held
+        if (_phoneCarrier != null && thiefHandBone != null && thiefModel != null && thiefModel.activeSelf)
+            _phoneCarrier.SetPositionAndRotation(thiefHandBone.position, thiefHandBone.rotation);
     }
 
     /// <summary>

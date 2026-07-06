@@ -74,7 +74,7 @@ public class StoryPhaseDriver : MonoBehaviour
             ray.StartManualInteraction((UnityEngine.XR.Interaction.Toolkit.Interactables.IXRSelectInteractable)teddyGrab);
             yield return new WaitForSeconds(0.6f);
             Check(teddyGrab.isSelected, "teddy REALLY grabbed (manual interaction held)");
-            Cap("p1_teddy_in_hand");
+            yield return CapSet("p1_teddy_in_hand", t2d3d.transform.position, 1.2f, 0.45f);
             if (ray.isPerformingManualInteraction) ray.EndManualInteraction();
         }
         else
@@ -102,6 +102,7 @@ public class StoryPhaseDriver : MonoBehaviour
         Cap("p3_slots_forming");
         yield return new WaitForSeconds(2.5f);
         Cap("p3_slots_formed");
+        yield return CapSet("p3_slot_audit", new Vector3(10f, 1.3f, 0f), 2.6f, 1.0f);
 
         // ---- solve the puzzle ----
         var puzzle = FindFirstObjectByType<FrameOrderPuzzle>();
@@ -133,7 +134,7 @@ public class StoryPhaseDriver : MonoBehaviour
             Look(teddyT.position + new Vector3(1.5f, 0.8f, -2.0f), teddyT.position + Vector3.up * 0.5f);
             Cap("p3_comet_midflight");
             yield return new WaitForSeconds(1.6f);
-            Cap("p3_comet_arrived");
+            yield return CapSet("p3_comet_arrived", teddyT.position, 1.4f, 0.5f);
             var comet = GameObject.Find("LightComet");
             Check(comet != null || true, "comet spawned (mid-flight cap taken)");
         }
@@ -241,6 +242,29 @@ public class StoryPhaseDriver : MonoBehaviour
     {
         _cam.transform.position = pos;
         _cam.transform.LookAt(at);
+    }
+
+    /// <summary>
+    /// Multi-angle audit set of a target: front, left, right, high-45 and CLOSE-UP.
+    /// One mid-distance screenshot per beat kept missing obvious visual bugs — always
+    /// review heroes from several angles and up close.
+    /// </summary>
+    public IEnumerator CapSet(string name, Vector3 target, float dist = 1.6f, float closeDist = 0.55f)
+    {
+        var offsets = new (string tag, Vector3 off)[]
+        {
+            ("front",  new Vector3(0f, 0.15f, -dist)),
+            ("left",   new Vector3(-dist * 0.8f, 0.15f, -dist * 0.5f)),
+            ("right",  new Vector3(dist * 0.8f, 0.15f, -dist * 0.5f)),
+            ("high45", new Vector3(0f, dist * 0.8f, -dist * 0.8f)),
+            ("close",  new Vector3(0.05f, 0.05f, -closeDist)),
+        };
+        foreach (var (tag, off) in offsets)
+        {
+            Look(target + off, target);
+            yield return null;
+            Cap(name + "_" + tag);
+        }
     }
 
     void Cap(string name)
