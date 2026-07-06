@@ -1,6 +1,9 @@
 # Claude Work Log
 
-## Session 4 (2026-07-06→7 overnight, the 15-hour build) — in progress
+## Session 4 (2026-07-06→7 overnight, the 15-hour build) — shipped through run 17 (11/11 PASS, no failures)
+
+Also fixed late in the session: tug metric = hand travel after grab (ray-grabs from afar counted as instant pulls); finale area moved past the 9-12 frame cluster (their mirrored back-side labels read as giant text); story frames 9-16 face the center; countdown at eye height. Fresh APK built from `cb6a22a`.
+
 
 Karen's round-4 feedback + full-game directive. Landed so far (each verified by driver runs + multi-angle audits):
 - **Phone grip**: iterated in a close-up "grip lab" — phone now sits in the finger curl, thumb behind, screen out (`v6`: offset (0.01,0.05,0.012), rot (0,90,12) on the scale-1 carrier).
