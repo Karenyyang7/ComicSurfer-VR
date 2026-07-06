@@ -1,5 +1,14 @@
 # Claude Work Log
 
+## Session 3b (2026-07-06) — VR feedback round 3 (`7aad832`)
+
+All four reports root-caused and fixed, plus a testing-process overhaul:
+- **Phone → white slab**: was parented into the 100x-scaled Mixamo hand bone (the exact trap in the project notes about Jen's wrists). Scale-1 carrier follows the bone now; verified with in-hand close-ups.
+- **Thief still off the phone**: edit-mode clip sampling lied (14.3° reach angle) vs RUNTIME tracking (60.4°). Solved from live data → 1mm horizontal error + magnetize; the gap is logged every run ("runtime hand-phone gap at attach").
+- **"Line of comics"**: six always-on white `SnapZoneVisual` panels from an old session — I'd even photographed them the night before and rationalized them away. Deleted.
+- **Can't push the edges**: flap colliders were triggers → XR rays ignore triggers by default (no hover color, no select). Solid colliders + hover brightening + hand-proximity push + dialogue says "PUSH the edges".
+- **Audit harness**: every hero beat now captured from 5 angles incl. close-up (`CapSet` in StoryPhaseDriver). It immediately caught 1-meter default-size shatter particles. Glow particles got soft-circle texture (were hard squares). Rule: after any state change, close-up the object; investigate anomalies, never rationalize them.
+
 ## Session 3 (2026-07-06 overnight) — VR feedback round 2
 
 Scope per Karen: build everything up to "ordering frames done + green light flies into the teddy". All landed, all headless-verified (driver run 12: every phase PASS incl. a REAL held XR grab of the teddy).
