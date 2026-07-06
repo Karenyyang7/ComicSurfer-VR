@@ -89,6 +89,9 @@ public class ThiefSpawner : MonoBehaviour
     [Tooltip("Seconds to turn toward the book after lifting")]
     public float turnDuration = 0.6f;
 
+    [Tooltip("Extra yaw (deg) past the phone when turning toward it. The Lift animation twists the torso back slightly, so overshooting the root turn keeps him visually facing the phone at the grab.")]
+    public float phoneTurnOvershoot = 20f;
+
     [Tooltip("Pause after turning, before jumping back (lets player see the phone)")]
     public float postTurnPause = 0.8f;
 
@@ -183,7 +186,11 @@ public class ThiefSpawner : MonoBehaviour
         // what the hand is about to grab.
         Debug.Log("Phase 3: Turning toward phone");
         Vector3 phoneLookTarget = phoneObject != null ? phoneObject.transform.position : phonePos;
-        yield return StartCoroutine(SmoothTurn(phoneLookTarget, turnDuration));
+        // Overshoot the turn: rotate the look target around the thief by phoneTurnOvershoot
+        // degrees so the lift animation's torso twist-back still leaves him facing the phone.
+        Vector3 toPhone = phoneLookTarget - thiefModel.transform.position;
+        toPhone = Quaternion.Euler(0f, phoneTurnOvershoot, 0f) * toPhone;
+        yield return StartCoroutine(SmoothTurn(thiefModel.transform.position + toPhone, turnDuration));
 
         // ── PHASE 4: Dramatic pause — thief spots the phone ───────────────────
         yield return new WaitForSeconds(preGrabPause);
