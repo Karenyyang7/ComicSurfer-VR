@@ -126,6 +126,7 @@ public class PuzzleFrameFlow : MonoBehaviour
 
         var label = fr.transform.Find("NumberLabel");
         if (label != null) label.gameObject.SetActive(true);
+        SfxPlayer.Play("frame_reveal", fr.transform.position);
 
         Transform t = fr.transform;
         Vector3 baseScale = t.localScale;

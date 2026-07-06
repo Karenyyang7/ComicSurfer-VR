@@ -44,6 +44,7 @@ public class TeddyBear2Dto3D : MonoBehaviour
         {
             _grab.enabled = false;   // disabled until fully 3D
             _grab.selectEntered.AddListener(OnGrabbed);
+            _grab.selectExited.AddListener(OnReleased);
         }
     }
 
@@ -66,6 +67,36 @@ public class TeddyBear2Dto3D : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Placed down: the teddy stays where the player left it (kinematic, no gravity)
+    /// and turns to FACE the player — pick it up again any time.
+    /// </summary>
+    void OnReleased(UnityEngine.XR.Interaction.Toolkit.SelectExitEventArgs args)
+    {
+        if (!_grabbed) return;
+        var rb = GetComponent<Rigidbody>();
+        if (rb != null) { rb.isKinematic = true; rb.useGravity = false; }
+        StartCoroutine(FacePlayer());
+    }
+
+    System.Collections.IEnumerator FacePlayer()
+    {
+        var cam = Camera.main;
+        if (cam == null) yield break;
+        Vector3 look = cam.transform.position - transform.position;
+        look.y = 0f;
+        if (look.sqrMagnitude < 0.001f) yield break;
+        Quaternion from = transform.rotation;
+        Quaternion to = Quaternion.LookRotation(look.normalized); // model faces +Z at yaw 180 = toward player already handled by look dir
+        float e = 0f, dur = 0.5f;
+        while (e < dur)
+        {
+            e += Time.deltaTime;
+            transform.rotation = Quaternion.Slerp(from, to, e / dur);
+            yield return null;
+        }
+    }
+
     void SetRenderersVisible(bool on)
     {
         foreach (var r in teddyModel.GetComponentsInChildren<Renderer>(true))
@@ -78,6 +109,17 @@ public class TeddyBear2Dto3D : MonoBehaviour
     void OnGrabbed(UnityEngine.XR.Interaction.Toolkit.SelectEnterEventArgs args)
     {
         if (_grabbed) return;
+        // With a TeddyPullOut, grabbing alone isn't enough — the teddy must be TORN free
+        // (3 tugs). TeddyPullOut calls CompleteGrab() when that happens.
+        var pull = GetComponent<TeddyPullOut>();
+        if (pull != null && !pull.IsFree) return;
+        CompleteGrab();
+    }
+
+    /// <summary>The teddy is truly free: detach, shrink to carry size, advance the story.</summary>
+    public void CompleteGrab()
+    {
+        if (_grabbed) return;
         _grabbed = true;
 
         // Detach from Frame1 so the frame doesn't follow the player's hand
@@ -86,6 +128,7 @@ public class TeddyBear2Dto3D : MonoBehaviour
         // Shrink from inherited frame scale (~3x) down to a carryable teddy
         StartCoroutine(ShrinkToCarrySize());
 
+        SfxPlayer.Play("grab_pop", transform.position);
         Debug.Log("[TeddyBear2Dto3D] Teddy grabbed — detached from Frame1.");
         OnTeddyGrabbed?.Invoke();
 

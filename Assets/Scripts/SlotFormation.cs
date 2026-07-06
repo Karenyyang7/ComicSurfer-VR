@@ -75,6 +75,7 @@ public class SlotFormation : MonoBehaviour
     IEnumerator FormRoutine()
     {
         Debug.Log("[SlotFormation] player approached — slots materializing");
+        SfxPlayer.Play("slot_form", transform.position);
         // shimmer burst at each zone as the outline forms
         foreach (var zone in snapZones)
         {

@@ -56,6 +56,7 @@ public class Frame1FoldPuzzle : MonoBehaviour
         _folded.Add(flap);
 
         StartCoroutine(FoldRoutine(flap));
+        SfxPlayer.Play("frame_fold", flap.transform.position);
 
         float t = _totalFlaps > 0 ? (float)_folded.Count / _totalFlaps : 1f;
         if (teddyTransition != null)
@@ -97,5 +98,8 @@ public class Frame1FoldPuzzle : MonoBehaviour
     void HideFoldVisuals()
     {
         if (foldRoot != null) foldRoot.SetActive(false);
+        // the number badge is a sibling of the fold root — hide it too or it lingers over Frame 2
+        var label = transform.Find("NumberLabel");
+        if (label != null) label.gameObject.SetActive(false);
     }
 }

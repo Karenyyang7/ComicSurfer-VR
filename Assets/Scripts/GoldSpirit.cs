@@ -27,6 +27,7 @@ public class GoldSpirit : MonoBehaviour
     {
         if (spiritParticles != null)
             spiritParticles.Play();
+        SfxPlayer.Play("spirit_rise", transform.position);
 
         // Phase 1: rise upward over 2 seconds
         float riseDuration = 2f;

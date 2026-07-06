@@ -74,6 +74,21 @@ public class StoryPhaseDriver : MonoBehaviour
             ray.StartManualInteraction((UnityEngine.XR.Interaction.Toolkit.Interactables.IXRSelectInteractable)teddyGrab);
             yield return new WaitForSeconds(0.6f);
             Check(teddyGrab.isSelected, "teddy REALLY grabbed (manual interaction held)");
+
+            // force-pull: 3 tugs to tear the teddy free
+            var pullOut = t2d3d.GetComponent<TeddyPullOut>();
+            if (pullOut != null)
+            {
+                for (int tug = 0; tug < 3; tug++)
+                {
+                    pullOut.SimulateTug();
+                    yield return new WaitForSeconds(1.1f);
+                    if (tug == 1) Cap("p1_tug2_snapback");
+                }
+                Check(pullOut.IsFree, "teddy TORN FREE after 3 tugs");
+                yield return new WaitForSeconds(1.2f); // quadrant blast mid-flight
+                Cap("p1_shatter_blast");
+            }
             yield return CapSet("p1_teddy_in_hand", t2d3d.transform.position, 1.2f, 0.45f);
             if (ray.isPerformingManualInteraction) ray.EndManualInteraction();
         }

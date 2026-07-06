@@ -56,6 +56,7 @@ public class ThiefComicWorld : MonoBehaviour
         currentState = ThiefState.Appearing;
 
         if (eyeSparkles != null) eyeSparkles.Play();
+        SfxPlayer.Play("thief_appear", transform.position);
 
         StartCoroutine(AppearRoutine());
     }
@@ -90,6 +91,8 @@ public class ThiefComicWorld : MonoBehaviour
     IEnumerator FleeRoutine()
     {
         Debug.Log("[ThiefComicWorld] Thief fleeing!");
+        SfxPlayer.Play("thief_flee", transform.position);
+        if (_animator != null) _animator.SetBool("Running", true);
 
         while (_waypointIndex < waypoints.Length - 1)
         {
@@ -119,6 +122,7 @@ public class ThiefComicWorld : MonoBehaviour
             if (_player != null && HorizontalDistance(transform.position, _player.position) > fleeDistance * 2f)
             {
                 // Player backed off — go idle at this waypoint
+                if (_animator != null) _animator.SetBool("Running", false);
                 currentState = ThiefState.Idle;
                 StartCoroutine(IdleLoop());
                 yield break;
@@ -126,6 +130,7 @@ public class ThiefComicWorld : MonoBehaviour
         }
 
         // Reached final waypoint — disappear into a frame
+        if (_animator != null) _animator.SetBool("Running", false);
         currentState = ThiefState.Disappeared;
         Debug.Log("[ThiefComicWorld] Thief disappeared into a frame.");
 

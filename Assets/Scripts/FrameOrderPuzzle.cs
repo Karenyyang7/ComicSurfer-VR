@@ -71,6 +71,7 @@ public class FrameOrderPuzzle : MonoBehaviour
                     frame.transform.rotation = snapZones[z].rotation;
                     _placedFrames[z] = frame.frameIndex;
                     frame.NotifyPlaced();
+                    SfxPlayer.Play("slot_snap", snapZones[z].position);
                     Debug.Log($"[FrameOrderPuzzle] Frame {frame.frameIndex} snapped to zone {z}");
 
                     if (AllZonesFilled())
@@ -106,6 +107,7 @@ public class FrameOrderPuzzle : MonoBehaviour
         {
             _solved = true;
             Debug.Log("[FrameOrderPuzzle] CORRECT ORDER! Puzzle solved.");
+            SfxPlayer.Play2D("puzzle_correct");
             OnPuzzleSolved?.Invoke();
             if (ComicWorldManager.Instance != null)
                 ComicWorldManager.Instance.OnPuzzleSolved();
@@ -113,6 +115,7 @@ public class FrameOrderPuzzle : MonoBehaviour
         else
         {
             Debug.Log("[FrameOrderPuzzle] Wrong order — returning frames.");
+            SfxPlayer.Play2D("puzzle_wrong");
             yield return StartCoroutine(HighlightWrong());
             ReturnFrames();
         }

@@ -163,9 +163,12 @@ public class BackgroundFrameSpawner : MonoBehaviour
             float z = Mathf.Sin(angle) * radius;
             float y = Random.Range(minHeight, maxHeight);
             var pos = new Vector3(x, y, z);
+            // keep clear of Frame 1's spot (0,1.5,3) — BG frames were spawning through it
+            Vector3 f1 = new Vector3(0f, pos.y, 3f);
+            if (Vector3.Distance(pos, f1) < 2.0f) continue;
             if (pos.magnitude >= minDistanceFromCenter) return pos;
         }
-        // Fallback
-        return new Vector3(Random.Range(-spawnRadius, spawnRadius), Random.Range(minHeight, maxHeight), Random.Range(-spawnRadius, spawnRadius));
+        // Fallback — behind the player, away from Frame 1
+        return new Vector3(Random.Range(-spawnRadius, -4f), Random.Range(minHeight, maxHeight), Random.Range(-spawnRadius, -4f));
     }
 }

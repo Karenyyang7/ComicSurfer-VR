@@ -120,6 +120,7 @@ public class TeddyBearController : MonoBehaviour
     public void StartGoldGlow()
     {
         currentState = TeddyState.Glowing;
+        SfxPlayer.Play("teddy_glow", transform.position);
 
         // Whole-body gold glow on BOTH pose meshes (emission on every material slot)
         foreach (var r in AllPoseRenderers())

@@ -51,6 +51,7 @@ public class LightComet : MonoBehaviour
         l.intensity = 1.6f;
         l.range = 4f;
 
+        SfxPlayer.Play("comet_fly", transform.position);
         Vector3 start = transform.position;
         Vector3 arcUp = Vector3.up * Mathf.Max(1.2f, Vector3.Distance(start, _target != null ? _target.position : start) * 0.25f);
         float e = 0f;
@@ -67,6 +68,7 @@ public class LightComet : MonoBehaviour
             yield return null;
         }
 
+        SfxPlayer.Play("comet_arrive", transform.position);
         _onArrive?.Invoke();
 
         // linger + fade

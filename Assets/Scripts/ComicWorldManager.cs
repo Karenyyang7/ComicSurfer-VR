@@ -140,7 +140,8 @@ public class ComicWorldManager : MonoBehaviour
         if (frame2 != null && frame1SpawnPoint != null)
             frame2.transform.position = frame1SpawnPoint.position;
 
-        // All grey BG frames shatter simultaneously
+        // All grey BG frames shatter — the world breaks apart around the player
+        SfxPlayer.Play2D("world_break");
         if (backgroundFrameSpawner != null)
             backgroundFrameSpawner.ShatterAllBackgroundFrames();
 
@@ -152,15 +153,22 @@ public class ComicWorldManager : MonoBehaviour
 
     IEnumerator Phase2Setup()
     {
-        yield return new WaitForSeconds(0.8f);   // Let shatters finish
+        // The world-break is a MOMENT: BG frames shatter in a ~3s cascade (stagger set on
+        // the spawner), then Harriet's story pops in frame by frame.
+        yield return new WaitForSeconds(3.2f);
 
         // Spawn new pastel BG frames
         if (backgroundFrameSpawner != null)
             backgroundFrameSpawner.SpawnNewBackgroundFrames();
 
-        // Activate all story frames 3-16
+        // Story frames 3-16 pop in one after another
         for (int i = 3; i <= 16; i++)
+        {
             SetFrameActive(i, true);
+            var fr = GetFrameByIndex(i);
+            if (fr != null) SfxPlayer.Play("frame_reveal", fr.transform.position, 0.4f);
+            yield return new WaitForSeconds(0.12f);
+        }
 
         // Advance to Phase 3 after dialogue
         if (DialogueSystem.Instance != null)

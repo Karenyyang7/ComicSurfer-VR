@@ -107,6 +107,7 @@ public class FinalChallenge : MonoBehaviour
     }
 
     private TMPro.TextMeshPro _timerTmp;
+    private int _lastTickSecond = -1;
 
     IEnumerator TimerRoutine()
     {
@@ -114,7 +115,13 @@ public class FinalChallenge : MonoBehaviour
         {
             _timeRemaining -= Time.deltaTime;
 
-            string display = Mathf.CeilToInt(_timeRemaining).ToString();
+            int whole = Mathf.CeilToInt(_timeRemaining);
+            if (whole != _lastTickSecond && whole > 0)
+            {
+                _lastTickSecond = whole;
+                SfxPlayer.Play2D(whole <= 15 ? "timer_urgent" : "timer_tick", whole <= 15 ? 0.7f : 0.35f);
+            }
+            string display = whole.ToString();
             if (timerText != null) timerText.text = display;
             if (_timerTmp != null) _timerTmp.text = display;
 
@@ -204,6 +211,7 @@ public class FinalChallenge : MonoBehaviour
         _running = false;
 
         Debug.Log("[FinalChallenge] WIN!");
+        SfxPlayer.Play2D("win_fanfare");
 
         if (frame1Renderer != null && frame1MaterialVibrant != null)
             frame1Renderer.material = frame1MaterialVibrant;
@@ -220,6 +228,7 @@ public class FinalChallenge : MonoBehaviour
         _running = false;
 
         Debug.Log("[FinalChallenge] LOSE — time ran out.");
+        SfxPlayer.Play2D("lose_sting");
 
         if (frame1Renderer != null && frame1MaterialBW != null)
             frame1Renderer.material = frame1MaterialBW;
