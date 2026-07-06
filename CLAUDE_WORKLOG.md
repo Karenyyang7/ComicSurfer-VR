@@ -1,4 +1,15 @@
-# Claude Work Log — Overnight Session (2026-07-02)
+# Claude Work Log
+
+## Session 3 (2026-07-06 overnight) — VR feedback round 2
+
+Scope per Karen: build everything up to "ordering frames done + green light flies into the teddy". All landed, all headless-verified (driver run 12: every phase PASS incl. a REAL held XR grab of the teddy).
+
+- `cde745b` **Thief hand lands exactly on the phone.** The reach is a fixed offset in his local frame (r=0.284m, +14.3° local yaw) — solved in closed form: phone at that radius on the table, turn overshoot = −14.3° → verified horizontal gap 0.000m. (My earlier miss: I had the measurement — min hand-phone distance 0.16m — and misread it as an attach point instead of "hand never reaches the phone".)
+- `2742535` **Frame 1 = 4-edge PUSH fold** (art sliced into UV-cropped flaps that fold back with a crumple; teddy + center stay; 4 pushes → teddy 3D + grabbable — verified with StartManualInteraction, not just the enable flag). 3D teddy hidden until first push (the drawn teddy is the 2D state — kills the misaligned-sticker look Karen reported as "flipped"). Pull tabs gone. Puzzle frames drift far away in B/W with glow wisps → turn into real frames at Phase 3; slot borders materialize on approach; puzzle solved → LightComet arcs into the teddy → eyes begin. Dialogue panel smaller/lower/translucent (was blocking the frame). Wave particle velocity-mode assert fixed (was implicated in an editor crash mid-session).
+- Batchmode Unity crashed once (particle assert); relaunch + crash-guarded monitors handled it.
+- **For Karen:** pull + rebuild APK to test. Slot-formation distance (6m), fold angle (135°), comet speed (2.2s) are all tunable fields if the feel is off.
+
+# (Session 1-2 log below) — Overnight Session (2026-07-02)
 
 Running log of changes, observations, and plans. Newest entries at the bottom of each section. Every fix gets its own git commit so any one can be reverted independently.
 
