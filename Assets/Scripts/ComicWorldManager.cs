@@ -54,6 +54,9 @@ public class ComicWorldManager : MonoBehaviour
     [Tooltip("Green/gold flowy light wave over the puzzle area — hidden until Phase 3 (after teddy grab), draws the player toward the ordering puzzle")]
     public GameObject greenGoldWave;
 
+    [Tooltip("B/W-to-art presentation flow for the puzzle frames (revealed at Phase 3)")]
+    public PuzzleFrameFlow puzzleFrameFlow;
+
     void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
@@ -179,6 +182,10 @@ public class ComicWorldManager : MonoBehaviour
         if (greenGoldWave != null)
             greenGoldWave.SetActive(true);
 
+        // The drifting B/W frames turn into Harriet's real comic frames
+        if (puzzleFrameFlow != null)
+            puzzleFrameFlow.RevealFrames();
+
         if (DialogueSystem.Instance != null)
             DialogueSystem.Instance.ShowDialogue(GameDialogue.FramePuzzleIntro);
     }
@@ -187,10 +194,15 @@ public class ComicWorldManager : MonoBehaviour
     {
         Debug.Log("[ComicWorldManager] Puzzle solved!");
 
-        // Story beat: Harriet's eyes lose color, the teddy's eyes slowly turn green/gold
-        // over the next minute (finishes around the time the player has read frames 9-12).
+        // Story beat: the green light gathers and FLIES INTO the teddy bear; on arrival
+        // the teddy's eyes begin turning green/gold over the next minute.
         if (teddyBear != null)
-            teddyBear.StartEyeTransition(60f);
+        {
+            Vector3 from = greenLightLocation != null ? greenLightLocation.position
+                          : (framePuzzleArea != null ? framePuzzleArea.position : teddyBear.transform.position + Vector3.up * 2f);
+            var teddy = teddyBear; // capture
+            LightComet.Fly(from, teddy.transform, 2.2f, () => teddy.StartEyeTransition(60f));
+        }
 
         if (DialogueSystem.Instance != null)
         {

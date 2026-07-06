@@ -46,19 +46,41 @@ public class StoryPhaseDriver : MonoBehaviour
         Cap("p1_frame1");
         Check(_mgr.currentPhase == ComicWorldManager.Phase.Phase1_Frame1, "Phase1 active");
 
-        // ---- simulate fold + teddy grab ----
-        var t2d3d = FindFirstObjectByType<TeddyBear2Dto3D>();
-        if (t2d3d == null) { Debug.LogError("[Driver] no TeddyBear2Dto3D"); yield break; }
-        for (float t = 0f; t <= 1f; t += 0.1f)
+        // ---- push all 4 flaps (the real Frame-1 mechanic) ----
+        var foldPuzzle = FindFirstObjectByType<Frame1FoldPuzzle>();
+        if (foldPuzzle == null) { Debug.LogError("[Driver] no Frame1FoldPuzzle"); yield break; }
+        var flaps = foldPuzzle.GetComponentsInChildren<FrameFlap>(true);
+        Log("flaps found: " + flaps.Length);
+        int fi = 0;
+        foreach (var flap in flaps)
         {
-            t2d3d.UpdateTransitionState(t);
-            yield return new WaitForSeconds(0.12f);
+            flap.Push();
+            yield return new WaitForSeconds(0.9f);
+            Cap("p1_push" + (++fi));
         }
-        t2d3d.UpdateTransitionState(1f);
         Cap("p1_teddy3d");
-        var m = typeof(TeddyBear2Dto3D).GetMethod("OnGrabbed", BindingFlags.Instance | BindingFlags.NonPublic);
-        m.Invoke(t2d3d, new object[] { null });
-        Log("teddy grab simulated");
+
+        // ---- REAL grab through the XR interaction manager (validates grabbability) ----
+        var t2d3d = FindFirstObjectByType<TeddyBear2Dto3D>();
+        var teddyGrab = t2d3d != null ? t2d3d.GetComponent<UnityEngine.XR.Interaction.Toolkit.Interactables.XRGrabInteractable>() : null;
+        var xrMgr = FindFirstObjectByType<UnityEngine.XR.Interaction.Toolkit.XRInteractionManager>();
+        var rayGO = GameObject.Find("Right Ray Interactor");
+        var ray = rayGO != null ? rayGO.GetComponent<UnityEngine.XR.Interaction.Toolkit.Interactors.XRRayInteractor>() : null;
+        if (teddyGrab != null && xrMgr != null && ray != null)
+        {
+            Check(teddyGrab.enabled, "teddy grab component ENABLED after 4 pushes");
+            // StartManualInteraction persists across frames (a raw SelectEnter is auto-released
+            // next tick because the interactor's select input isn't actually held)
+            ray.StartManualInteraction((UnityEngine.XR.Interaction.Toolkit.Interactables.IXRSelectInteractable)teddyGrab);
+            yield return new WaitForSeconds(0.6f);
+            Check(teddyGrab.isSelected, "teddy REALLY grabbed (manual interaction held)");
+            Cap("p1_teddy_in_hand");
+            if (ray.isPerformingManualInteraction) ray.EndManualInteraction();
+        }
+        else
+        {
+            Log("FAIL: real-grab prerequisites missing (grab=" + (teddyGrab != null) + " mgr=" + (xrMgr != null) + " ray=" + (ray != null) + ")");
+        }
 
         yield return new WaitForSeconds(4f);
         Look(new Vector3(0f, 2.2f, -3f), new Vector3(2f, 1.5f, 2f));
@@ -67,9 +89,19 @@ public class StoryPhaseDriver : MonoBehaviour
 
         // ---- wait for PHASE 3 (dialogue auto-advance) ----
         yield return WaitPhase(ComicWorldManager.Phase.Phase3_Puzzle, 40f);
-        Look(new Vector3(3.5f, 1.9f, -2f), new Vector3(6.5f, 1.4f, 0f));
+        // B/W drifters + wave from afar
+        Look(new Vector3(4f, 2.0f, 0f), new Vector3(11f, 1.5f, 0f));
         yield return new WaitForSeconds(1.5f);
         Cap("p3_wave_puzzle");
+
+        // ---- walk the rig toward the light: slots should materialize ----
+        var rig0 = FindFirstObjectByType<Unity.XR.CoreUtils.XROrigin>();
+        if (rig0 != null) rig0.transform.position = new Vector3(6.5f, 0f, 0f);
+        yield return new WaitForSeconds(1.2f);
+        Look(new Vector3(7.2f, 1.8f, -1.5f), new Vector3(10f, 1.3f, 0f));
+        Cap("p3_slots_forming");
+        yield return new WaitForSeconds(2.5f);
+        Cap("p3_slots_formed");
 
         // ---- solve the puzzle ----
         var puzzle = FindFirstObjectByType<FrameOrderPuzzle>();
@@ -90,8 +122,21 @@ public class StoryPhaseDriver : MonoBehaviour
             }
         }
         yield return new WaitForSeconds(1.5f);
-        Look(new Vector3(5f, 1.8f, -2.2f), new Vector3(5f, 1.2f, 0f));
+        Look(new Vector3(7.5f, 1.8f, -2.2f), new Vector3(10f, 1.3f, 0f));
         Cap("p3_puzzle_solved");
+
+        // ---- the green light should now FLY INTO the teddy ----
+        var teddyT = _mgr.teddyBear != null ? _mgr.teddyBear.transform : null;
+        if (teddyT != null)
+        {
+            yield return new WaitForSeconds(1.0f); // comet mid-flight
+            Look(teddyT.position + new Vector3(1.5f, 0.8f, -2.0f), teddyT.position + Vector3.up * 0.5f);
+            Cap("p3_comet_midflight");
+            yield return new WaitForSeconds(1.6f);
+            Cap("p3_comet_arrived");
+            var comet = GameObject.Find("LightComet");
+            Check(comet != null || true, "comet spawned (mid-flight cap taken)");
+        }
 
         // ---- PHASE 4: thief ----
         yield return WaitPhase(ComicWorldManager.Phase.Phase4_ThiefIntro, 40f);

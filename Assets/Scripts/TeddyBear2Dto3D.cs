@@ -32,6 +32,11 @@ public class TeddyBear2Dto3D : MonoBehaviour
         _baseScale = teddyModel.transform.localScale;
         teddyModel.transform.localScale = new Vector3(_baseScale.x, _baseScale.y, _baseScale.z * flatZ);
 
+        // At t=0 the DRAWN teddy in the frame art is the 2D teddy. The 3D model stays
+        // invisible until the first fold push, then materializes and inflates out of the
+        // drawing — otherwise a flat 3D 'sticker' floats misaligned over the art.
+        SetRenderersVisible(false);
+
         _grab = GetComponent<XRGrabInteractable>();
         if (_grab == null) _grab = GetComponentInChildren<XRGrabInteractable>();
 
@@ -50,12 +55,21 @@ public class TeddyBear2Dto3D : MonoBehaviour
         float zScale = Mathf.Lerp(flatZ, 1f, t);
         teddyModel.transform.localScale = new Vector3(_baseScale.x, _baseScale.y, _baseScale.z * zScale);
 
+        // materialize once the transition starts (the drawn teddy 'comes to life')
+        SetRenderersVisible(t > 0.01f);
+
         if (t >= 0.99f && !_grabbable)
         {
             _grabbable = true;
             if (_grab != null) _grab.enabled = true;
             Debug.Log("[TeddyBear2Dto3D] Teddy is now fully 3D and grabbable!");
         }
+    }
+
+    void SetRenderersVisible(bool on)
+    {
+        foreach (var r in teddyModel.GetComponentsInChildren<Renderer>(true))
+            r.enabled = on;
     }
 
     [Tooltip("World scale of the teddy once carried. The frame is ~3x enlarged at grab time and the teddy inherits that — without normalizing, the player would hold a 2m bear.")]
