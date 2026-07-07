@@ -1,5 +1,16 @@
 # Claude Work Log
 
+## Session 6 (2026-07-08) — VR feedback round 6
+
+All four reports fixed, each verified from the player camera:
+
+- **"Thief turn split into two turns"**: the root pre-rotated 60° PAST the phone (overshoot compensating the Lift clip's torso twist), paused staring the wrong way, then visibly twisted back — two turns. Now: ONE turn squarely to the phone; the overshoot blends into the root DURING the Lift's reach-down (`BlendOvershootDuringLift`, tracks normalizedTime so it moves exactly as fast as the twist it cancels). Player-POV film: land → stand → bend → grab, one continuous motion.
+- **"Phone still a little off in his hands"**: zoomed player-POV grip lab (freeze admire pose via `animator.Play("Lift",0,0.55)+Update(0)`, ±2.5cm sweep along each carrier axis). Root cause: phone crossed THROUGH the open-fingered hand. Winner c2: offset (0.01, 0.018, 0.006) — phone rests against the palm plane, fingers grip its back, screen toward his face. Saved in Karen Room scene.
+- **"Teddy should always float around the user"**: new `TeddyCompanionFloat` — on release the teddy glides to an anchor 0.85m from the head at 50° off-view (out of the laser cone), chest height, lazy catch-up + bob, faces the player (except while story-pointing at the finale). Enabled by TeddyBear2Dto3D on first release; grabbing it again works any time.
+- **"Order frames from afar, not at my hand"**: new `FrameDistanceDrag` on every ray interactor (added by ComicWorldManager at start) — while hovering a ComicFrame, Force Grab turns off so the laser drags the frame AT DISTANCE into the slots; everything else (teddy, phone, cutouts) keeps normal grab. The teddy is explicitly excluded (it lives under Frame1 until torn free; tear-free relies on force-grab flying it into the hand).
+
+Verified: player-POV thief film (56 frames) + two full story-chain runs, 11/11 PASS each. Note: macOS /tmp cleanup ate the bridge tooling again at midnight (umcp_exec.py, spawn_driver.cs) — rebuilt from context; keep expecting this on overnight sessions.
+
 ## Session 5 (2026-07-07) — VR feedback round 5: player-POV testing rule adopted
 
 Karen's rule (verbatim intent): test visuals from the PLAYER's camera — debug angles kept hiding player-obvious bugs. `PlayerCap` added to the driver: renders Camera.main aimed at each hero beat (`*_POV.png`), plus a near-camera audit that logs every renderer within 2m of the head at capture time (giant near-plane mystery shapes now identify themselves in the log).

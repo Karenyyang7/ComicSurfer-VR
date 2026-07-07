@@ -1479,7 +1479,7 @@ MonoBehaviour:
   wpBookReturn: {fileID: 788753608}
   phoneObject: {fileID: 763126079}
   thiefHandBone: {fileID: 1081016898}
-  phoneLocalOffset: {x: 0.01, y: 0.05, z: 0.012}
+  phoneLocalOffset: {x: 0.01, y: 0.018, z: 0.006}
   phoneLocalRotation: {x: 0, y: 90, z: 102}
   phoneScale: 1
   jumpOutHeight: 0.12
@@ -1494,6 +1494,7 @@ MonoBehaviour:
   liftAnimSpeed: 0.75
   turnDuration: 0.5
   phoneTurnOvershoot: -60.4
+  overshootBlendEnd: 0.2
   postTurnPause: 0.2
   jumpBackHeight: 0.12
   jumpOutStateName: JumpOut

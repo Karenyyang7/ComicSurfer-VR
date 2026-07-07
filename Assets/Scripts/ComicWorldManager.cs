@@ -65,6 +65,11 @@ public class ComicWorldManager : MonoBehaviour
 
     void Start()
     {
+        // Ordering QoL: comic frames are dragged at laser distance, not yanked to the hand
+        foreach (var ray in FindObjectsByType<UnityEngine.XR.Interaction.Toolkit.Interactors.XRRayInteractor>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            if (ray.GetComponent<FrameDistanceDrag>() == null)
+                ray.gameObject.AddComponent<FrameDistanceDrag>();
+
         StartCoroutine(BeginGame());
     }
 

@@ -68,33 +68,17 @@ public class TeddyBear2Dto3D : MonoBehaviour
     }
 
     /// <summary>
-    /// Placed down: the teddy stays where the player left it (kinematic, no gravity)
-    /// and turns to FACE the player — pick it up again any time.
+    /// Released: the teddy becomes a floating companion — it drifts along beside the
+    /// player (kinematic, no gravity) and faces them; grab it again any time.
     /// </summary>
     void OnReleased(UnityEngine.XR.Interaction.Toolkit.SelectExitEventArgs args)
     {
         if (!_grabbed) return;
         var rb = GetComponent<Rigidbody>();
         if (rb != null) { rb.isKinematic = true; rb.useGravity = false; }
-        StartCoroutine(FacePlayer());
-    }
-
-    System.Collections.IEnumerator FacePlayer()
-    {
-        var cam = Camera.main;
-        if (cam == null) yield break;
-        Vector3 look = cam.transform.position - transform.position;
-        look.y = 0f;
-        if (look.sqrMagnitude < 0.001f) yield break;
-        Quaternion from = transform.rotation;
-        Quaternion to = Quaternion.LookRotation(look.normalized); // model faces +Z at yaw 180 = toward player already handled by look dir
-        float e = 0f, dur = 0.5f;
-        while (e < dur)
-        {
-            e += Time.deltaTime;
-            transform.rotation = Quaternion.Slerp(from, to, e / dur);
-            yield return null;
-        }
+        var companion = GetComponent<TeddyCompanionFloat>();
+        if (companion == null) companion = gameObject.AddComponent<TeddyCompanionFloat>();
+        companion.enabled = true;
     }
 
     void SetRenderersVisible(bool on)

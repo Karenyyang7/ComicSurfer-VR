@@ -89,8 +89,12 @@ public class ThiefSpawner : MonoBehaviour
     [Tooltip("Seconds to turn toward the book after lifting")]
     public float turnDuration = 0.6f;
 
-    [Tooltip("Extra yaw (deg) past the phone when turning toward it. The Lift animation twists the torso back slightly, so overshooting the root turn keeps him visually facing the phone at the grab.")]
+    [Tooltip("Extra root yaw (deg) blended in DURING the Lift reach-down to cancel the clip's torso twist. Applied while lifting (not before) — pre-rotating made him visibly turn past the phone and twist back: two turns.")]
     public float phoneTurnOvershoot = 20f;
+
+    [Tooltip("Fraction of the Lift clip over which the overshoot yaw blends in (the reach-down portion)")]
+    [Range(0.05f, 0.6f)]
+    public float overshootBlendEnd = 0.2f;
 
     [Tooltip("Pause after turning, before jumping back (lets player see the phone)")]
     public float postTurnPause = 0.8f;
@@ -185,12 +189,11 @@ public class ThiefSpawner : MonoBehaviour
         // Aim at the ACTUAL phone object (not the waypoint) so the body squarely faces
         // what the hand is about to grab.
         Debug.Log("Phase 3: Turning toward phone");
+        // ONE natural turn, squarely facing the phone. The torso-twist compensation
+        // (phoneTurnOvershoot) blends in during the Lift's reach-down instead — turning
+        // 60° past the phone here and twisting back during the lift read as TWO turns.
         Vector3 phoneLookTarget = phoneObject != null ? phoneObject.transform.position : phonePos;
-        // Overshoot the turn: rotate the look target around the thief by phoneTurnOvershoot
-        // degrees so the lift animation's torso twist-back still leaves him facing the phone.
-        Vector3 toPhone = phoneLookTarget - thiefModel.transform.position;
-        toPhone = Quaternion.Euler(0f, phoneTurnOvershoot, 0f) * toPhone;
-        yield return StartCoroutine(SmoothTurn(thiefModel.transform.position + toPhone, turnDuration));
+        yield return StartCoroutine(SmoothTurn(phoneLookTarget, turnDuration));
 
         // ── PHASE 4: Dramatic pause — thief spots the phone ───────────────────
         yield return new WaitForSeconds(preGrabPause);
@@ -203,6 +206,10 @@ public class ThiefSpawner : MonoBehaviour
 
         // Wait to enter Lifting state (up to 1s for transition)
         yield return StartCoroutine(WaitToEnterState(liftStateName, 1f));
+
+        // Counter-rotate the root while the clip twists the torso: the body visually
+        // stays planted on the phone through the reach — no second turn.
+        StartCoroutine(BlendOvershootDuringLift());
 
         // Attach the phone the moment the HAND actually reaches it (closest approach),
         // instead of at a fixed clip fraction — kills the "phone teleports into hand" look.
@@ -263,6 +270,29 @@ public class ThiefSpawner : MonoBehaviour
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Applies phoneTurnOvershoot yaw to the root over the first overshootBlendEnd of the
+    /// Lift clip, tracking normalizedTime so the compensation moves exactly as fast as the
+    /// clip's torso twist it cancels.
+    /// </summary>
+    IEnumerator BlendOvershootDuringLift()
+    {
+        if (thiefAnimator == null || Mathf.Approximately(phoneTurnOvershoot, 0f)) yield break;
+
+        Quaternion startRot = thiefModel.transform.rotation;
+        Quaternion endRot = startRot * Quaternion.Euler(0f, phoneTurnOvershoot, 0f);
+
+        while (thiefAnimator.GetCurrentAnimatorStateInfo(0).IsName(liftStateName))
+        {
+            float nt = thiefAnimator.GetCurrentAnimatorStateInfo(0).normalizedTime;
+            float k = Mathf.Clamp01(nt / overshootBlendEnd);
+            k = k * k * (3f - 2f * k); // smooth-step
+            thiefModel.transform.rotation = Quaternion.Slerp(startRot, endRot, k);
+            if (k >= 1f) yield break;
+            yield return null;
+        }
+    }
 
     /// <summary>
     /// During the Lift state, watches the distance between the hand bone and the phone and
