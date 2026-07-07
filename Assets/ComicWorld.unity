@@ -21806,8 +21806,8 @@ MonoBehaviour:
   typeSpeed: 0.04
   autoAdvanceDelay: 0
   advanceAction: {fileID: 784347491}
-  followDistance: 2.6
-  followHeightOffset: -0.62
+  followDistance: 1.4
+  followHeightOffset: -1
   followLerp: 4
 --- !u!4 &1078536646
 Transform:
@@ -37737,6 +37737,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TeddyPullOut
   tugDistance: 0.26
   tugsNeeded: 3
+  hardYankDistance: 0.5
+  maxLean: 0.09
   foldRoot: {fileID: 1742608971}
 --- !u!1 &77793233523603343
 GameObject:

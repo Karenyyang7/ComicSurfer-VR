@@ -166,7 +166,14 @@ public class ComicWorldManager : MonoBehaviour
         {
             SetFrameActive(i, true);
             var fr = GetFrameByIndex(i);
-            if (fr != null) SfxPlayer.Play("frame_reveal", fr.transform.position, 0.4f);
+            if (fr != null)
+            {
+                SfxPlayer.Play("frame_reveal", fr.transform.position, 0.4f);
+                // 9-16 are static displays on the walk path — hide them when the
+                // player's head is about to clip through (3-8 are grabbable, skip)
+                if (i >= 9 && fr.GetComponent<NearHeadFade>() == null)
+                    fr.gameObject.AddComponent<NearHeadFade>();
+            }
             yield return new WaitForSeconds(0.12f);
         }
 

@@ -44,6 +44,7 @@ public class StoryPhaseDriver : MonoBehaviour
         yield return new WaitForSeconds(3f);
         Look(new Vector3(0f, 1.7f, 0.6f), new Vector3(0f, 1.5f, 3f));
         Cap("p1_frame1");
+        PlayerCap("p1_frame1", new Vector3(0f, 1.5f, 3f));
         Check(_mgr.currentPhase == ComicWorldManager.Phase.Phase1_Frame1, "Phase1 active");
 
         // ---- push all 4 flaps (the real Frame-1 mechanic) ----
@@ -59,6 +60,7 @@ public class StoryPhaseDriver : MonoBehaviour
             Cap("p1_push" + (++fi));
         }
         Cap("p1_teddy3d");
+        PlayerCap("p1_teddy3d", new Vector3(0f, 1.45f, 3f));
 
         // ---- REAL grab through the XR interaction manager (validates grabbability) ----
         var t2d3d = FindFirstObjectByType<TeddyBear2Dto3D>();
@@ -75,19 +77,45 @@ public class StoryPhaseDriver : MonoBehaviour
             yield return new WaitForSeconds(0.6f);
             Check(teddyGrab.isSelected, "teddy REALLY grabbed (manual interaction held)");
 
-            // force-pull: 3 tugs to tear the teddy free
+            // REAL force-pull: physically move the interactor to generate hand travel
             var pullOut = t2d3d.GetComponent<TeddyPullOut>();
             if (pullOut != null)
             {
-                for (int tug = 0; tug < 3; tug++)
+                Vector3 rayHome = rayGO.transform.position;
+                for (int tug = 0; tug < 5 && !pullOut.IsFree; tug++)
                 {
-                    pullOut.SimulateTug();
-                    yield return new WaitForSeconds(1.1f);
-                    if (tug == 1) Cap("p1_tug2_snapback");
+                    rayGO.transform.position = rayHome;           // hand home BEFORE regrab
+                    yield return null;
+                    if (!teddyGrab.isSelected)
+                    {
+                        // the forced slip-exit leaves the ray's manual-interaction flag stale
+                        if (ray.isPerformingManualInteraction)
+                        {
+                            try { ray.EndManualInteraction(); } catch (System.Exception e) { Log("EndManualInteraction: " + e.Message); }
+                            yield return null;
+                        }
+                        ray.StartManualInteraction((UnityEngine.XR.Interaction.Toolkit.Interactables.IXRSelectInteractable)teddyGrab);
+                        Log("regrab: isSelected=" + teddyGrab.isSelected);
+                    }
+                    yield return null; yield return null;         // watcher captures handStart
+                    // slow pull: 0.35m over 0.9s — crosses the tug threshold mid-ramp
+                    for (float t = 0f; t < 0.9f && !pullOut.IsFree; t += Time.deltaTime)
+                    {
+                        rayGO.transform.position = rayHome + new Vector3(0f, 0f, -0.35f) * (t / 0.9f);
+                        yield return null;
+                    }
+                    yield return new WaitForSeconds(0.7f);        // jolt-back settles
+                    var fld = typeof(TeddyPullOut).GetField("_tugs", BindingFlags.Instance | BindingFlags.NonPublic);
+                    var wat = typeof(TeddyPullOut).GetField("_watching", BindingFlags.Instance | BindingFlags.NonPublic);
+                    Log("pull-iter " + tug + ": selected=" + teddyGrab.isSelected + " tugs=" + fld.GetValue(pullOut)
+                        + " watching=" + wat.GetValue(pullOut) + " free=" + pullOut.IsFree
+                        + " rayPos=" + rayGO.transform.position.ToString("F2"));
+                    if (tug == 1) PlayerCap("p1_tug2", t2d3d.transform.position);
                 }
-                Check(pullOut.IsFree, "teddy TORN FREE after 3 tugs");
-                yield return new WaitForSeconds(1.2f); // quadrant blast mid-flight
-                Cap("p1_shatter_blast");
+                rayGO.transform.position = rayHome;
+                Check(pullOut.IsFree, "teddy TORN FREE via real pull motion");
+                yield return new WaitForSeconds(0.9f);
+                PlayerCap("p1_shatter_blast", new Vector3(0f, 1.5f, 3f));
             }
             yield return CapSet("p1_teddy_in_hand", t2d3d.transform.position, 1.2f, 0.45f);
             if (ray.isPerformingManualInteraction) ray.EndManualInteraction();
@@ -103,6 +131,7 @@ public class StoryPhaseDriver : MonoBehaviour
         yield return new WaitForSeconds(4f);
         Look(new Vector3(0f, 2.2f, -3f), new Vector3(2f, 1.5f, 2f));
         Cap("p2_world_reveal");
+        PlayerCap("p2_world_reveal", new Vector3(4f, 1.5f, 1f));
         Check(_mgr.currentPhase >= ComicWorldManager.Phase.Phase2_Frame2, "Phase2 reached (or beyond — tear-free advances fast)");
 
         // ---- wait for PHASE 3 (dialogue auto-advance) ----
@@ -120,6 +149,7 @@ public class StoryPhaseDriver : MonoBehaviour
         Cap("p3_slots_forming");
         yield return new WaitForSeconds(2.5f);
         Cap("p3_slots_formed");
+        PlayerCap("p3_slots_formed", new Vector3(10f, 1.3f, 0f));
         yield return CapSet("p3_slot_audit", new Vector3(10f, 1.3f, 0f), 2.6f, 1.0f);
 
         // ---- solve the puzzle ----
@@ -151,6 +181,7 @@ public class StoryPhaseDriver : MonoBehaviour
             yield return new WaitForSeconds(1.0f); // comet mid-flight
             Look(teddyT.position + new Vector3(1.5f, 0.8f, -2.0f), teddyT.position + Vector3.up * 0.5f);
             Cap("p3_comet_midflight");
+            PlayerCap("p3_comet_midflight", teddyT.position + Vector3.up * 0.4f);
             yield return new WaitForSeconds(1.6f);
             yield return CapSet("p3_comet_arrived", teddyT.position, 1.4f, 0.5f);
             var comet = GameObject.Find("LightComet");
@@ -163,6 +194,7 @@ public class StoryPhaseDriver : MonoBehaviour
         Look(new Vector3(-2.5f, 1.8f, -1.5f), new Vector3(-5f, 1.4f, 0f));
         yield return new WaitForSeconds(2f);
         Cap("p4_thief");
+        PlayerCap("p4_thief", thief != null ? thief.transform.position + Vector3.up * 1.2f : Vector3.zero);
 
         // CHASE the thief with the rig until he disappears into a frame — a single teleport
         // isn't enough: if the player falls >2x fleeDistance behind, he stops and idles.
@@ -192,6 +224,7 @@ public class StoryPhaseDriver : MonoBehaviour
         if (teddyCtrl != null) Look(teddyCtrl.transform.position + new Vector3(0.9f, 0.5f, -1f), teddyCtrl.transform.position);
         yield return new WaitForSeconds(2f);
         Cap("p6_teddy_glow_point");
+        if (teddyCtrl != null) PlayerCap("p6_teddy_glow", teddyCtrl.transform.position);
 
         var fc = _mgr.finalChallenge;
         if (fc != null)
@@ -283,6 +316,45 @@ public class StoryPhaseDriver : MonoBehaviour
             yield return null;
             Cap(name + "_" + tag);
         }
+    }
+
+    /// <summary>
+    /// Render from the PLAYER's camera (Camera.main) aimed at a target — what the player
+    /// actually sees in the headset. Debug-camera angles kept hiding player-obvious bugs.
+    /// </summary>
+    void PlayerCap(string name, Vector3 lookAt)
+    {
+        var cam = Camera.main;
+        if (cam == null) { Cap(name); return; }
+        cam.transform.LookAt(lookAt);
+        var prevTarget = cam.targetTexture;
+        cam.targetTexture = _rt;
+        cam.Render();
+        RenderTexture.active = _rt;
+        _tex.ReadPixels(new Rect(0, 0, width, height), 0, 0);
+        _tex.Apply();
+        RenderTexture.active = null;
+        cam.targetTexture = prevTarget;
+        File.WriteAllBytes(Path.Combine(outputDir, name + "_POV.png"), _tex.EncodeToPNG());
+        Log("cap " + name + "_POV (player camera)");
+
+        // Anything within arm's reach of the camera dominates the headset view —
+        // list it so giant near-plane mystery shapes in POV caps identify themselves.
+        var near = new System.Collections.Generic.List<string>();
+        foreach (var r in FindObjectsByType<Renderer>(FindObjectsSortMode.None))
+        {
+            if (!r.isVisible || r is ParticleSystemRenderer) continue;
+            float d = Vector3.Distance(r.bounds.ClosestPoint(cam.transform.position), cam.transform.position);
+            if (d < 2.0f) near.Add($"{FullPath(r.transform)}@{d:F2}m");
+        }
+        if (near.Count > 0) Log("  near-cam: " + string.Join(" | ", near));
+    }
+
+    static string FullPath(Transform t)
+    {
+        string p = t.name;
+        while (t.parent != null) { t = t.parent; p = t.name + "/" + p; }
+        return p;
     }
 
     void Cap(string name)

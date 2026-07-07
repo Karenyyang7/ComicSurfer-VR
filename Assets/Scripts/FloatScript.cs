@@ -97,4 +97,10 @@ public class FloatScript : MonoBehaviour
         _origin = transform.position;
         _baseRotation = transform.rotation;
     }
+
+    /// <summary>Shifts the float anchor without capturing the current bob offset (player-clearance push).</summary>
+    public void NudgeOrigin(Vector3 delta)
+    {
+        _origin += delta;
+    }
 }

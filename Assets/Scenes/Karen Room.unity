@@ -1480,7 +1480,7 @@ MonoBehaviour:
   phoneObject: {fileID: 763126079}
   thiefHandBone: {fileID: 1081016898}
   phoneLocalOffset: {x: 0.01, y: 0.05, z: 0.012}
-  phoneLocalRotation: {x: 0, y: 90, z: 12}
+  phoneLocalRotation: {x: 0, y: 90, z: 102}
   phoneScale: 1
   jumpOutHeight: 0.12
   maxArcY: 2.35

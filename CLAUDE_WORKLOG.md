@@ -1,5 +1,20 @@
 # Claude Work Log
 
+## Session 5 (2026-07-07) — VR feedback round 5: player-POV testing rule adopted
+
+Karen's rule (verbatim intent): test visuals from the PLAYER's camera — debug angles kept hiding player-obvious bugs. `PlayerCap` added to the driver: renders Camera.main aimed at each hero beat (`*_POV.png`), plus a near-camera audit that logs every renderer within 2m of the head at capture time (giant near-plane mystery shapes now identify themselves in the log).
+
+All round-5 reports root-caused and fixed, verified by two full driver runs (11/11 PASS each) + POV capture review:
+
+- **"Phone cuts through the thief's hand horizontally"**: previous grip was tuned against an edit-mode SAMPLED pose from side cameras. Froze the RUNTIME animator at the admire beat and iterated from the player camera → carrier rot (0,90,102), offset (0.01,0.05,0.012). Saved in Karen Room scene.
+- **"No pull — teddy instantly gets onto my hand"**: XRGrab default tracking snapped it to the hand. TeddyPullOut rewritten as resist-grab: trackPosition/Rotation OFF until torn free — grabbing holds a fixed handle; the teddy leans toward the pull, the frame stretches; each tug past 0.22m = crack + elastic slip-back; 3 tugs (or one 0.5m hard yank) tears it free. Watcher is a resilient Update() loop with per-tug baseline resets — the first coroutine version died after tug 1 because forced SelectExit doesn't stick on manual interactions.
+- **"Teddy faces away when grabbed"**: GrabAttach child rotated 180° + forced re-select on tear (XRGrab caches its tracking config at select time — enabling trackPosition mid-grab does nothing without a SelectExit→SelectEnter cycle). POV capture confirms the bear faces the player in-hand.
+- **"Frame didn't shatter / world didn't recreate"**: same root cause as the no-pull report — tear-free never fired. With the rewrite the driver verifies a REAL pull-motion tear every run (hand ramps 0.35m, logs tugs 1→3, BlastQuadrants + world break follow).
+- **POV-only find #1 — giant blank sheet in the player's face (Phases 3-4)**: B/W background frames spawn around the ORIGIN but the player roams to x≈10; one sat 0.5m from the head as a screen-filling gray wedge. New `PlayerClearance` on every BG frame: glides away when the player comes within 2.5m.
+- **POV-only find #2 — screen-filling black arcs (Phase 6)**: near-cam audit named it — Frame16 0.18m from the head; the "arcs" were its giant number glyphs. New `NearHeadFade` on story frames 9-16: renderers hide when the head is within 0.45m (show again at 0.6m — hysteresis, no flicker).
+- Dialogue panel lowered (followDistance 1.4, heightOffset −1.0) — it was covering Frame 1 from the player's view (invisible from every debug angle).
+- Note: finale `timerText=NULL` in the wiring log is by design (UGUI variant unused; the runtime 3D billboard renders the countdown).
+
 ## Session 4 (2026-07-06→7 overnight, the 15-hour build) — shipped through run 17 (11/11 PASS, no failures)
 
 Post-run-17 additions: ComicWorld thief was hidden INSIDE the old placeholder capsule (only his shadow rendered) — capsule removed, he's a visible animated ninja with gold eye sparkles now. LOSE path verified end-to-end (timer expiry → lose sting → finale frame goes B/W → Phase 7). Note: macOS /tmp cleanup deleted my bridge tooling mid-session at midnight — rebuilt; test screenshots in /tmp are ephemeral, PASS/FAIL logs preserved here.

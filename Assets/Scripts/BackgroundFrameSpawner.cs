@@ -108,6 +108,11 @@ public class BackgroundFrameSpawner : MonoBehaviour
             fs.tiltAmount     = Random.Range(2f, 5f);
             fs.tiltPeriod     = Random.Range(6f, 10f);
 
+            // Frames spawn around the ORIGIN but the player roams the whole map
+            // (order puzzle is at x≈10) — without this, a frame can sit centimeters
+            // from the player's face as a giant blank sheet.
+            go.AddComponent<PlayerClearance>();
+
             _activeFrames.Add(go);
         }
     }
@@ -170,5 +175,39 @@ public class BackgroundFrameSpawner : MonoBehaviour
         }
         // Fallback — behind the player, away from Frame 1
         return new Vector3(Random.Range(-spawnRadius, -4f), Random.Range(minHeight, maxHeight), Random.Range(-spawnRadius, -4f));
+    }
+}
+
+/// <summary>
+/// Keeps a background frame out of the player's personal space: when the player
+/// (Camera.main) comes within clearRadius, the frame glides away horizontally.
+/// Added at runtime by BackgroundFrameSpawner — purely visual frames only.
+/// </summary>
+public class PlayerClearance : MonoBehaviour
+{
+    public float clearRadius = 2.5f;
+
+    private FloatScript _float;
+
+    void Start()
+    {
+        _float = GetComponent<FloatScript>();
+    }
+
+    void LateUpdate()
+    {
+        var cam = Camera.main;
+        if (cam == null) return;
+
+        Vector3 away = transform.position - cam.transform.position;
+        away.y = 0f;
+        float dist = away.magnitude;
+        if (dist >= clearRadius) return;
+
+        Vector3 dir = dist > 0.01f ? away / dist : transform.forward;
+        // exponential ease toward the clearance ring — smooth glide, no pop
+        Vector3 delta = dir * (clearRadius - dist) * Mathf.Clamp01(Time.deltaTime * 2.5f);
+        if (_float != null) _float.NudgeOrigin(delta);
+        else transform.position += delta;
     }
 }

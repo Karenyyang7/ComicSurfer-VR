@@ -4,112 +4,159 @@ using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
 
 /// <summary>
-/// Force interaction for pulling the teddy out of Frame 1 (VR feedback):
-/// the first two grabs let the player DRAG the teddy a short way — the frame stretches
-/// with it — then the teddy slips free of the hand and snaps back with a jolt. On the
-/// THIRD pull it tears free: quadrant flaps blast apart as art shards (big shatter),
-/// and the normal grabbed-teddy flow continues in the player's hand.
+/// Force interaction for pulling the teddy out of Frame 1 (VR feedback v2):
+/// Until torn free the teddy RESISTS — grabbing does NOT bring it to your hand
+/// (track position/rotation off, like a fixed handle). As you pull, the teddy leans
+/// toward your hand and the frame stretches; past the tug distance it slips your grip
+/// with a crack and a jolt. Three tugs — or one hard continuous yank — tears it free:
+/// the quadrants blast apart as art shards and the teddy flies into your hand.
 /// </summary>
 [RequireComponent(typeof(XRGrabInteractable))]
 public class TeddyPullOut : MonoBehaviour
 {
-    [Tooltip("Pull distance (m) at which a tug 'slips' (or tears free on the last one)")]
-    public float tugDistance = 0.26f;
-    [Tooltip("Number of tugs before the teddy comes free")]
+    [Tooltip("Hand travel (m) that counts as one tug")]
+    public float tugDistance = 0.22f;
+    [Tooltip("Tugs needed to tear free")]
     public int tugsNeeded = 3;
+    [Tooltip("Hand travel that tears it free in ONE continuous yank")]
+    public float hardYankDistance = 0.5f;
+    [Tooltip("How far the teddy visually leans toward the pulling hand")]
+    public float maxLean = 0.09f;
     [Tooltip("Fold root whose quadrants stretch with the pull and blast apart at the end")]
     public Transform foldRoot;
 
     public event System.Action OnTornFree;
 
     private XRGrabInteractable _grab;
-    private Vector3 _anchorPos;
-    private Quaternion _anchorRot;
+    private Vector3 _anchorLocalPos;
+    private Quaternion _anchorLocalRot;
     private Transform _anchorParent;
     private int _tugs;
     private bool _free;
     private bool _watching;
+    private bool _hintShown;
 
     void Awake()
     {
         _grab = GetComponent<XRGrabInteractable>();
-        _grab.selectEntered.AddListener(OnSelect);
+
+        // RESIST: grabbing must not move the teddy until it's torn free.
+        // (Default XRGrab snapped it instantly into the hand — no pull sensation at all.)
+        _grab.trackPosition = false;
+        _grab.trackRotation = false;
+        _grab.throwOnDetach = false;
+
+        // Held orientation: attach transform rotated so the bear FACES the player
+        // when it finally flies to the hand (default alignment showed its back).
+        var attach = new GameObject("GrabAttach").transform;
+        attach.SetParent(transform, false);
+        attach.localPosition = Vector3.zero;
+        attach.localRotation = Quaternion.Euler(0f, 180f, 0f);
+        _grab.attachTransform = attach;
+        _grab.useDynamicAttach = false;
 
         _anchorParent = transform.parent;
-        _anchorPos = transform.localPosition;
-        _anchorRot = transform.localRotation;
+        _anchorLocalPos = transform.localPosition;
+        _anchorLocalRot = transform.localRotation;
     }
 
-    void OnSelect(SelectEnterEventArgs args)
-    {
-        if (_free || _watching) return;
-        StartCoroutine(WatchPull(args.interactorObject));
-    }
+    private Vector3 _baseline;
+    private bool _hasBaseline;
+    private bool _jolting;
 
-    IEnumerator WatchPull(UnityEngine.XR.Interaction.Toolkit.Interactors.IXRSelectInteractor interactor)
+    void Update()
     {
-        _watching = true;
-        // Measure the HAND's travel after grabbing — measuring teddy-vs-frame distance
-        // made a ray-grab from afar count as an instant max-pull (the teddy teleports
-        // to the hand on attach).
-        var handT = interactor.transform;
-        yield return null;                       // let the attach settle
-        Vector3 handStart = handT.position;
+        if (_free || _grab == null) return;
 
-        while (_grab.isSelected && !_free)
+        if (!_grab.isSelected || _grab.interactorsSelecting.Count == 0)
         {
-            float pull = Vector3.Distance(handT.position, handStart);
-
-            // the frame stretches with the pull
-            if (foldRoot != null)
+            // released without tearing: settle back to the anchor
+            _hasBaseline = false;
+            if (!_jolting)
             {
-                float s = 1f + Mathf.Clamp01(pull / tugDistance) * 0.16f;
-                foldRoot.localScale = new Vector3(s, s, 1f);
+                transform.localPosition = Vector3.Lerp(transform.localPosition, _anchorLocalPos, Time.deltaTime * 10f);
+                transform.localRotation = Quaternion.Slerp(transform.localRotation, _anchorLocalRot, Time.deltaTime * 10f);
+                if (foldRoot != null)
+                    foldRoot.localScale = Vector3.Lerp(foldRoot.localScale, Vector3.one, Time.deltaTime * 10f);
             }
-
-            if (pull > tugDistance)
-            {
-                _tugs++;
-                if (_tugs >= tugsNeeded)
-                {
-                    TearFree();
-                    _watching = false;
-                    yield break;
-                }
-
-                // slip: force-release and snap back with a jolt
-                var mgr = _grab.interactionManager;
-                if (mgr != null && _grab.isSelected)
-                    mgr.SelectExit(interactor, (IXRSelectInteractable)_grab);
-                yield return StartCoroutine(SnapBack());
-                break;
-            }
-            yield return null;
+            return;
         }
 
-        if (foldRoot != null) foldRoot.localScale = Vector3.one;
-        _watching = false;
+        var hand = _grab.interactorsSelecting[0].transform;
+        if (!_hasBaseline)
+        {
+            _baseline = hand.position;
+            _hasBaseline = true;
+            return;
+        }
+
+        float pull = Vector3.Distance(hand.position, _baseline);
+        Vector3 anchorWorld = _anchorParent != null ? _anchorParent.TransformPoint(_anchorLocalPos) : transform.position;
+
+        // strain toward the hand; frame stretches with the effort
+        if (!_jolting)
+        {
+            Vector3 toHand = hand.position - anchorWorld;
+            if (toHand.sqrMagnitude > 0.0001f)
+                transform.position = anchorWorld + toHand.normalized * Mathf.Min(pull * 0.4f, maxLean);
+        }
+        if (foldRoot != null)
+        {
+            float s = 1f + Mathf.Clamp01(pull / tugDistance) * 0.14f;
+            foldRoot.localScale = new Vector3(s, s, 1f);
+        }
+
+        if (pull > hardYankDistance)
+        {
+            TearFree();
+            return;
+        }
+
+        if (pull > tugDistance)
+        {
+            _tugs++;
+            Debug.Log($"[TeddyPullOut] tug {_tugs}/{tugsNeeded} (pull {pull:F2}m)");
+            if (_tugs >= tugsNeeded)
+            {
+                TearFree();
+                return;
+            }
+
+            // slip: crack + jolt, RESET the baseline and keep watching — never depend on
+            // the selection actually ending (fast re-squeezes / manual grips persist)
+            _baseline = hand.position;
+            SfxPlayer.Play("teddy_strain", transform.position);
+            ShatterFX.Burst(transform.position, new Color(0.95f, 0.8f, 0.75f), 8, 1.2f, 0.9f, 0.05f);
+            var mgr = _grab.interactionManager;
+            if (mgr != null && _grab.isSelected)
+                mgr.SelectExit(_grab.interactorsSelecting[0], (IXRSelectInteractable)_grab);
+            StartCoroutine(JoltBack());
+
+            if (!_hintShown)
+            {
+                _hintShown = true;
+                DialogueSystem.Instance?.ShowDialogue(new string[] { "It's stuck to the page... PULL harder!" });
+            }
+        }
     }
 
-    IEnumerator SnapBack()
+    IEnumerator JoltBack()
     {
-        SfxPlayer.Play("teddy_strain", transform.position);
-        transform.SetParent(_anchorParent);
+        _jolting = true;
         Vector3 from = transform.localPosition;
-        float dur = 0.22f, e = 0f;
+        float dur = 0.18f, e = 0f;
         while (e < dur)
         {
             e += Time.deltaTime;
             float k = e / dur;
-            // elastic overshoot
-            float s = 1f - Mathf.Pow(1f - k, 2f) * Mathf.Cos(k * 14f) * 0.5f - Mathf.Pow(1f - k, 2f) * 0.5f;
-            transform.localPosition = Vector3.LerpUnclamped(from, _anchorPos, s);
+            float s = 1f - Mathf.Pow(1f - k, 2f) * Mathf.Cos(k * 18f);
+            transform.localPosition = Vector3.LerpUnclamped(from, _anchorLocalPos, Mathf.Clamp01(s));
             yield return null;
         }
-        transform.localPosition = _anchorPos;
-        transform.localRotation = _anchorRot;
+        transform.localPosition = _anchorLocalPos;
+        transform.localRotation = _anchorLocalRot;
         if (foldRoot != null) foldRoot.localScale = Vector3.one;
-        Debug.Log($"[TeddyPullOut] tug {_tugs}/{tugsNeeded} — teddy slipped back");
+        _jolting = false;
     }
 
     void TearFree()
@@ -119,14 +166,29 @@ public class TeddyPullOut : MonoBehaviour
         Debug.Log("[TeddyPullOut] TORN FREE!");
         SfxPlayer.Play("frame_shatter", transform.position);
 
-        // quadrants blast apart carrying their art
+        // XRGrab caches its tracking setup at select time — enabling trackPosition
+        // mid-grab does nothing. Force a re-select so the teddy actually flies to the
+        // hand (with the GrabAttach rotation = facing the player).
+        _grab.trackPosition = true;
+        _grab.trackRotation = true;
+        if (_grab.isSelected && _grab.interactorsSelecting.Count > 0)
+            StartCoroutine(ReSelect(_grab.interactorsSelecting[0]));
+
         StartCoroutine(BlastQuadrants());
 
-        // the teddy is truly free — run the grabbed-teddy story flow (detach, shrink, Phase 2)
         var teddy = GetComponent<TeddyBear2Dto3D>();
         if (teddy != null) teddy.CompleteGrab();
 
         OnTornFree?.Invoke();
+    }
+
+    IEnumerator ReSelect(UnityEngine.XR.Interaction.Toolkit.Interactors.IXRSelectInteractor interactor)
+    {
+        var mgr = _grab.interactionManager;
+        if (mgr == null) yield break;
+        mgr.SelectExit(interactor, (IXRSelectInteractable)_grab);
+        yield return null;
+        mgr.SelectEnter(interactor, (IXRSelectInteractable)_grab);
     }
 
     IEnumerator BlastQuadrants()
@@ -163,7 +225,7 @@ public class TeddyPullOut : MonoBehaviour
         foldRoot.gameObject.SetActive(false);
     }
 
-    /// <summary>Test hook for the headless driver — one simulated tug.</summary>
+    /// <summary>Test hook — one simulated tug (headless driver fallback).</summary>
     public void SimulateTug()
     {
         _tugs++;
