@@ -21807,7 +21807,7 @@ MonoBehaviour:
   autoAdvanceDelay: 0
   advanceAction: {fileID: 784347491}
   followDistance: 1.4
-  followHeightOffset: -1
+  followHeightOffset: -0.65
   followLerp: 4
 --- !u!4 &1078536646
 Transform:

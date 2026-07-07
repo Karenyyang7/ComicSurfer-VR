@@ -186,9 +186,16 @@ public class TeddyPullOut : MonoBehaviour
     {
         var mgr = _grab.interactionManager;
         if (mgr == null) yield break;
+        // the tear must fly the teddy INTO the hand — force-grab the re-select even on
+        // rays configured (or policy-flipped) to grab at a distance
+        var ray = interactor as UnityEngine.XR.Interaction.Toolkit.Interactors.XRRayInteractor;
+        bool savedForce = ray != null && ray.useForceGrab;
+        if (ray != null) ray.useForceGrab = true;
         mgr.SelectExit(interactor, (IXRSelectInteractable)_grab);
         yield return null;
         mgr.SelectEnter(interactor, (IXRSelectInteractable)_grab);
+        yield return null;
+        if (ray != null) ray.useForceGrab = savedForce;
     }
 
     IEnumerator BlastQuadrants()

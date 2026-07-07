@@ -1,5 +1,19 @@
 # Claude Work Log
 
+## Session 7 (2026-07-08) — VR feedback round 7: the frame-drag root cause
+
+**The big one — "still can't drag frames, grabbing teleports to my hand."** Reproduced in-editor with a REAL input path (ray aim frozen against the wrist-follower, trigger held via `selectInput` ManualValue mode — the driver's manual interactions bypass ray attach logic entirely, which is why 20+ passing runs never caught this). Two stacked root causes:
+1. `ray.useForceGrab=false` (round 6 fix) is IGNORED in XRI 3.x when the interactable's `farAttachMode` is Near (the default) — XRGrabInteractable implements IFarAttachProvider and overrides the interactor.
+2. Setting `farAttachMode=Far` STILL teleported: the rig wires each ray's **Attach Transform to the same object as its Ray Origin** (`RightRayOrigin`, the wrist carrier). XRI far attach works by moving attachTransform to the laser hit point — aliased, the grab keeps tracking the hand object no matter what.
+
+Fix (ComicWorldManager.Start): give each ray a dedicated `DistanceAttach` child (de-alias), set `farAttachMode=Far` on frames 3-8's XRGrabInteractable, normalize `useForceGrab=true` on both rays (scene shipped left=false/right=true — hands behaved differently). Teddy/phone/cutouts keep pull-to-hand; the teddy tear-free additionally forces force-grab during its ReSelect. VERIFIED with held-trigger input: frame stays at 1.77m on the laser axis and follows the sweep.
+
+Other round-7 fixes:
+- **Companion float rework**: v1 recomputed the anchor from the view direction every frame — turning your head pushed the teddy away ("when I tried to turn it turned further"). Now it PARKS (bob + face player) and only glides to a front-side anchor (25° off-view, was 50° — "too much to the right") when the player walks >1.4m away or leaves it >110° behind.
+- **Dialogue panel** raised: followHeightOffset -1.0 → -0.65 (round-5 drop overshot).
+- **Phone closer to the fingers**: grip offset y 0.018 → 0.028 (f1) — pressed against the finger plane, no gap. Player-POV zoom verified.
+- **Teddy "should be flipped"**: verified in-engine — drawn teddy faces the viewer; yaw 180 (current) = face toward player, yaw 0 = back of head. The current build matches the art; her report matches the pre-alignment APK. If it still reads flipped on this APK, revisit with a stereo check.
+
 ## Session 6 (2026-07-08) — VR feedback round 6
 
 All four reports fixed, each verified from the player camera:

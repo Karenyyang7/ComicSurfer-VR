@@ -65,10 +65,35 @@ public class ComicWorldManager : MonoBehaviour
 
     void Start()
     {
-        // Ordering QoL: comic frames are dragged at laser distance, not yanked to the hand
+        // Laser-drag the puzzle frames AT DISTANCE (order them from afar). The switch
+        // must live on the INTERACTABLE: XRGrabInteractable implements IFarAttachProvider
+        // and its default farAttachMode=Near overrides the ray's Force Grab setting —
+        // which is why flipping ray.useForceGrab never worked ("teleports to my hand").
+        foreach (var fr in FindObjectsByType<ComicFrame>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        {
+            var g = fr.GetComponent<UnityEngine.XR.Interaction.Toolkit.Interactables.XRGrabInteractable>();
+            if (g != null) g.farAttachMode = UnityEngine.XR.Interaction.Toolkit.Attachment.InteractableFarAttachMode.Far;
+        }
+        // Normal grabs (teddy, phone, cutouts) pull to the hand on BOTH rays — the scene
+        // shipped with left=false/right=true, which made the hands behave differently.
         foreach (var ray in FindObjectsByType<UnityEngine.XR.Interaction.Toolkit.Interactors.XRRayInteractor>(FindObjectsInactive.Include, FindObjectsSortMode.None))
-            if (ray.GetComponent<FrameDistanceDrag>() == null)
-                ray.gameObject.AddComponent<FrameDistanceDrag>();
+        {
+            ray.useForceGrab = true;
+
+            // The rig aliases the ray's Attach Transform to its Ray Origin (the wrist
+            // carrier). XRI's far attach moves attachTransform to the laser hit point —
+            // aliased, that would drag the RAY ORIGIN around and the grab still tracks
+            // the hand, so frames always teleported to the hand. Give each ray its own
+            // attach child so far attach has something safe to move.
+            if (ray.attachTransform == ray.rayOriginTransform && ray.rayOriginTransform != null)
+            {
+                var attach = new GameObject(ray.gameObject.name + " DistanceAttach").transform;
+                attach.SetParent(ray.rayOriginTransform, false);
+                attach.localPosition = Vector3.zero;
+                attach.localRotation = Quaternion.identity;
+                ray.attachTransform = attach;
+            }
+        }
 
         StartCoroutine(BeginGame());
     }
